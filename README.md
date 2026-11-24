@@ -1,5 +1,5 @@
 > [!NOTE]
-> This is a fork of [venukbh/http-tracker](https://github.com/venukbh/http-tracker) added features that the **maintainer refuses to give a damn on** and also cleared some AI mess.
+> This is a fork of [venukbh/http-tracker](https://github.com/venukbh/http-tracker) added features that the **maintainer refuses to give a damn about** and also cleared some AI mess.
 
 **Features Added**
 
