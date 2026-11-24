@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html id="http_tracker" lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>HTTP-TRACKER</title>
+  <link rel="stylesheet" type="text/css" href="/src/css/styles.css" />
+  <script type="text/javascript" src="/src/js/constants.js" defer></script>
+  <script type="text/javascript" src="/src/js/utils.js" defer></script>
+  <script type="text/javascript" src="/src/js/event-cache.js" defer></script>
+  <script type="text/javascript" src="/src/js/details-view.js" defer></script>
+  <script type="text/javascript" src="/src/js/header-rules.js" defer></script>
+  <script type="text/javascript" src="/src/js/processor.js" defer></script>
+  <script type="text/javascript" src="/src/js/dom-events.js" defer></script>
+  <script type="text/javascript" src="/src/js/open.js" defer></script>
+</head>
+
+<body>
+  <main id="web_events_tracking" class="web_event_tracker">
+    <header class="tracker_header_bar">
+      <div class="tracker_header_left">
+        <img src="/src/assets/icon_32px.png" alt="HTTP-TRACKER" class="tracker_brand_icon" />
+        <h1 class="tracker_brand_title">HTTP-TRACKER</h1>
+      </div>
+      <div class="tracker_header_center">
+        <span id="fidelity_badge" class="tracker_fidelity_badge"
+          title="Captures and inspects actual HTTP/HTTPS network traffic dispatched through the browser network stack (including multi-hop server redirects and native HSTS upgrades).">Genuine network transactions rather than browser-generated internal URL rewrites</span>
+      </div>
+      <div class="tracker_header_actions">
+        <button id="preferences" type="button" class="wn_btn wn_btn_secondary web_event_button_preferences"
+          title="Preferences: Open global extension preferences (persistent filters, masking, window mode)">⚙️ Preferences</button>
+        <button id="whats_new" type="button" class="wn_btn wn_btn_secondary web_event_button_preferences"
+          title="What's New: View release notes and features introduced across all versions">📖 What's New</button>
+      </div>
+    </header>
+    <div class="panes_container">
+      <div class="left_pane">
+        <div class="tracker_row"
+          title="Provide a list of comma-separated words so that any url containing one of the words will be tracked by the addon. If the url does not contain any of the words, it will not be tracked. If same word is in skip list also, the matching url will not be tracked as skip list takes precedence. Leaving this input field blank tracks all the urls.">
+          <label for="track_urls_pattern" class="left_pane_label"
+            title="Track URLs having: Provide comma-separated words to match URLs to track (e.g. google, api, checkout). Leave blank to track all.">Track URLs having</label>
+          <div class="tracker_input_wrapper">
+            <input id="track_urls_pattern" type="text"
+              title="Track URLs having: Provide comma-separated words to match URLs to track (e.g. google, api, checkout). Leave blank to track all."
+              placeholder="e.g. google, api, checkout (comma-separated)" />
+            <div class="input_trailing_icons">
+              <button type="button" class="input_clear_btn" data-clear-target="track_urls_pattern"
+                aria-label="Clear track URLs" title="Clear text" tabindex="-1">&#x2715;</button>
+              <span id="info_include" class="info_badge"></span>
+            </div>
+          </div>
+        </div>
+        <div class="tracker_row"
+          title="Provide a list of comma-separated words so that any url containing one of the words will not be tracked by the addon. If the url does not contain any of the words, it will be tracked. Leaving this input field blank tracks all the urls. Permanent excludes can also be set in the preferences.">
+          <label for="exclude_urls_pattern" class="left_pane_label"
+            title="Skip URLs having: Provide comma-separated words to match URLs to skip (e.g. analytics, cdn, static). Leave blank to skip nothing.">Skip URLs having</label>
+          <div class="tracker_input_wrapper">
+            <input id="exclude_urls_pattern" type="text"
+              title="Skip URLs having: Provide comma-separated words to match URLs to skip (e.g. analytics, cdn, static). Leave blank to skip nothing."
+              placeholder="e.g. analytics, cdn, static (comma-separated)" value="" />
+            <div class="input_trailing_icons">
+              <button type="button" class="input_clear_btn" data-clear-target="exclude_urls_pattern"
+                aria-label="Clear skip URLs" title="Clear text" tabindex="-1">&#x2715;</button>
+              <span id="info_exclude" class="info_badge"></span>
+            </div>
+          </div>
+        </div>
+        <div class="tracker_row"
+          title="Provide a list of comma-separated words so that any url containing one of the words will be blocked by the addon and the request will never leave the browser. This acts like a blocker. Leaving this input field blank blocks nothing.">
+          <label for="block_urls_pattern" class="left_pane_label"
+            title="Block URLs having: Provide comma-separated words to match URLs to block completely (e.g. ads, tracking, pixel). Blocked requests never leave the browser. Leave blank to block nothing.">Block URLs having</label>
+          <div class="tracker_input_wrapper">
+            <input id="block_urls_pattern" type="text"
+              title="Block URLs having: Provide comma-separated words to match URLs to block completely (e.g. ads, tracking, pixel). Blocked requests never leave the browser. Leave blank to block nothing."
+              placeholder="e.g. ads, tracking, pixel (comma-separated)" value="" />
+            <div class="input_trailing_icons">
+              <button type="button" class="input_clear_btn" data-clear-target="block_urls_pattern"
+                aria-label="Clear block URLs" title="Clear text" tabindex="-1">&#x2715;</button>
+            </div>
+          </div>
+        </div>
+        <div class="tracker_row headers_row"
+          title="Provide name, value and an optional url details for each header.&#013;&#013;examples&#013;&#013;1: Adding header to all urls containing word 'google' in them  &#013;&nbsp;&nbsp;&nbsp;&nbsp;url:google&#013;2: Add header to any url, leave the url part empty&#013;&#013;NOTES:&#013;&#013;&nbsp;&nbsp;1: Adding / modifiying forbidden headers has no effect.&#013;&nbsp;&nbsp;2: If header name is blank, that header is not added&#013;&nbsp;&nbsp;3: Only valid headers will be added for requests matching the url property value and invalid headers will mark the name field in RED color for indication.&#013;&nbsp;&nbsp;4:Its always good to keep more specific the url">
+          <div id="add_modify_headers_banner" class="left_pane_label headers_banner_label"
+            title="Modify headers: Add or modify HTTP request headers for matching URLs.">
+            Modify headers
+          </div>
+          <div id="add_modify_headers" class="all_headers_containers">
+            <div id="header_details_0" class="single_header_container">
+              <div class="add_header_name">
+                <label for="header_name_0" class="web_event_list_hide"
+                  title="Header name to add or modify (e.g. X-Custom-Header, Authorization)">Header name</label>
+                <div class="tracker_input_wrapper">
+                  <input id="header_name_0" type="text" class="header_input_name"
+                    title="Header name to add or modify (e.g. X-Custom-Header, Authorization)"
+                    aria-label="Header name"
+                    placeholder="Header name (e.g. X-Custom-Header)" />
+                  <div class="input_trailing_icons">
+                    <button type="button" class="input_clear_btn" data-clear-target="header_name_0"
+                      aria-label="Clear header name" title="Clear text" tabindex="-1">&#x2715;</button>
+                  </div>
+                </div>
+              </div>
+              <div class="add_header_value">
+                <label for="header_value_0" class="web_event_list_hide"
+                  title="Header value to set (e.g. my-token-value, Bearer token)">Header value</label>
+                <div class="tracker_input_wrapper">
+                  <input id="header_value_0" type="text"
+                    class="header_input_value"
+                    title="Header value to set (e.g. my-token-value, Bearer token)"
+                    aria-label="Header value"
+                    placeholder="Header value (e.g. my-value)" />
+                  <div class="input_trailing_icons">
+                    <button type="button" class="input_clear_btn" data-clear-target="header_value_0"
+                      aria-label="Clear header value" title="Clear text" tabindex="-1">&#x2715;</button>
+                  </div>
+                </div>
+              </div>
+              <div class="add_header_url">
+                <label for="header_url_0" class="web_event_list_hide"
+                  title="Target URL pattern to match (optional: leave blank to apply to all URLs)">Target URL</label>
+                <div class="tracker_input_wrapper">
+                  <input id="header_url_0" type="text" class="header_input_url"
+                    title="Target URL pattern to match (optional: leave blank to apply to all URLs)"
+                    aria-label="Target URL pattern"
+                    placeholder="Target URL (blank = all URLs)" />
+                  <div class="input_trailing_icons">
+                    <button type="button" class="input_clear_btn" data-clear-target="header_url_0"
+                      aria-label="Clear header URL" title="Clear text" tabindex="-1">&#x2715;</button>
+                  </div>
+                </div>
+              </div>
+              <div class="add_header_apply">
+                <input id="header_apply_0" type="checkbox" class="header_input_apply"
+                  title="Check this to activate and apply this header modification rule" /><label for="header_apply_0"
+                  title="Check this to activate and apply this header modification rule">Apply</label>
+              </div>
+              <div class="header_buttons_container">
+                <button id="header_button_remove_0" type="button" data-header-index="0"
+                  title="Remove this header modification rule"
+                  aria-label="Remove header rule">-</button>
+                <button id="header_button_add_0" type="button"
+                  title="Add a new header modification rule row"
+                  aria-label="Add header rule">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="right_pane">
+        <div class="tracker_row right_pane_top_row">
+          <div class="checkbox_group"
+            title="Check this to capture and display form data and request payload bodies along with headers and cookies">
+            <input id="include_form_data" type="checkbox"
+              title="Check this to capture and display form data and request payload bodies along with headers and cookies" checked />
+            <label for="include_form_data"
+              title="Check this to capture and display form data and request payload bodies along with headers and cookies">Capture form data</label>
+          </div>
+          <div class="checkbox_group"
+            title="Check this to sort and deduplicate response cookies, automatically identifying the final cookie applied to the domain/path. Uncheck to display cookies in the order received from the server.">
+            <input id="optimize_response_cookies" type="checkbox"
+              title="Check this to sort and deduplicate response cookies, automatically identifying the final cookie applied to the domain/path. Uncheck to display cookies in the order received from the server." checked />
+            <label for="optimize_response_cookies"
+              title="Check this to sort and deduplicate response cookies, automatically identifying the final cookie applied to the domain/path. Uncheck to display cookies in the order received from the server.">Optimize
+              response cookies</label>
+          </div>
+        </div>
+        <div class="tracker_row"
+          title="Mask any attributes (headers, form data) containing one of the words from this list while displaying. Will not mask if the data is raw data for a POST event. Leaving this field blank will not mask any attributes.&#013;&#013;This feature is highly used while capturing screenshots containing sensitive attributes">
+          <label for="mask_patterns_list" class="right_pane_label"
+            title="Mask fields: Comma-separated sensitive attribute names to mask with asterisks (e.g. authorization, password, token)">Mask fields</label>
+          <div class="right_pane_controls_wrapper">
+            <div class="tracker_input_wrapper">
+              <input id="mask_patterns_list" type="text"
+                title="Mask fields: Comma-separated sensitive attribute names to mask with asterisks (e.g. authorization, password, token)"
+                placeholder="e.g. authorization, password, token (comma-separated)" value="" />
+              <div class="input_trailing_icons">
+                <button type="button" class="input_clear_btn" data-clear-target="mask_patterns_list"
+                  aria-label="Clear mask fields" title="Clear text" tabindex="-1">&#x2715;</button>
+                <span id="info_mask" class="info_badge"></span>
+              </div>
+            </div>
+            <div class="right_pane_trailing_slot"
+              title="Toggle sensitive field masking on or off in the details view">
+              <input id="enable_mask_patterns" type="checkbox"
+                title="Toggle sensitive field masking on or off in the details view" checked />
+              <label for="enable_mask_patterns"
+                title="Toggle sensitive field masking on or off in the details view">Enable</label>
+            </div>
+          </div>
+        </div>
+        <div class="tracker_row" title="Find in details: Search within the selected request details pane (headers, cookies, payload). Supports regex.">
+          <label for="find_in_details_pattern" class="right_pane_label"
+            title="Find in details: Search within the selected request details pane (headers, cookies, payload). Supports regex.">Find in details</label>
+          <div class="right_pane_controls_wrapper">
+            <div class="tracker_input_wrapper">
+              <input id="find_in_details_pattern" type="text"
+                title="Find in details: Search within the selected request details pane (headers, cookies, payload). Supports regex."
+                placeholder="Search headers, cookies, values... (supports regex)" value="" />
+              <div class="input_trailing_icons">
+                <button type="button" class="input_clear_btn" data-clear-target="find_in_details_pattern"
+                  aria-label="Clear find in details" title="Clear text" tabindex="-1">&#x2715;</button>
+              </div>
+            </div>
+            <div class="right_pane_trailing_slot" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="tracker_row" title="Delete all browser cookies for a specified domain">
+          <label for="delete_cookies" class="right_pane_label"
+            title="Delete cookies: Enter a domain name and click Delete to remove all its cookies from the browser">Delete cookies</label>
+          <div class="right_pane_controls_wrapper">
+            <div class="tracker_input_wrapper">
+              <input id="delete_cookies" type="text" placeholder="Enter domain name (e.g. example.com)"
+                title="Enter domain name whose cookies you want to delete from the browser (e.g. example.com)"
+                aria-label="Domain to delete cookies from" value="" />
+              <div class="input_trailing_icons">
+                <button type="button" class="input_clear_btn" data-clear-target="delete_cookies"
+                  aria-label="Clear domain" title="Clear text" tabindex="-1">&#x2715;</button>
+              </div>
+            </div>
+            <div class="right_pane_trailing_slot">
+              <button id="delete_cookies_button" type="button" class="web_event_button_delete_cookies"
+                title="Delete all cookies for the entered domain from the browser" disabled>Delete</button>
+            </div>
+          </div>
+        </div>
+        <div class="tracker_row action_buttons_row">
+          <button id="delete_all_filtered_web_events" type="button" class="web_event_button_delete_all_filtered"
+            title="Delete all filtered events from the list and cache">Delete filtered</button>
+          <button id="delete_selected_web_event" type="button" class="web_event_button_delete_selected"
+            title="Delete the selected event from the list and cache">Delete selected</button>
+          <button id="delete_all_web_events" type="button" class="web_event_button_delete_all"
+            title="Delete all events and clear the cache (same as refreshing or reopening the tracker window)">Delete
+            all</button>
+          <button id="toggle_track_web_events" type="button" class="web_event_button_toggle_track"
+            title="Pause the tracker. When paused, nothing will be tracked.">Pause tracker</button>
+        </div>
+      </div>
+    </div>
+    <section id="urls_list" class="web_event_list_container" tabindex="0" aria-label="Captured HTTP requests"><!-- NOSONAR -->
+      <div id="urls_list_heading" class="urls_list_heading">
+        <div class="web_event_list_url col_header_cell" data-col="url">
+          <div class="col_header_title_bar">
+            <span class="col_header_title" title="Request URL. Click any row below to view its full request and response details.">URL [click tracked url for details]</span>
+            <button type="button" class="col_filter_toggle_btn" data-col="url" title="Filter by URL" aria-label="Filter by URL">&#x1F50D;</button>
+          </div>
+          <div class="col_filter_input_wrapper" style="display: none;">
+            <input id="col_filter_url" type="text" class="col_filter_input" data-col="url" placeholder="Filter URL..." aria-label="Filter URL" />
+            <button type="button" class="col_filter_close_btn" data-col="url" title="Clear and close filter" aria-label="Clear filter">&#x2715;</button>
+          </div>
+        </div>
+        <div class="web_event_list_method col_header_cell" data-col="method">
+          <div class="col_header_title_bar">
+            <span class="col_header_title" title="HTTP Request Method (GET, POST, PUT, DELETE, OPTIONS, etc.)">Method</span>
+            <button type="button" class="col_filter_toggle_btn" data-col="method" title="Filter by Method" aria-label="Filter by Method">&#x1F50D;</button>
+          </div>
+          <div class="col_filter_input_wrapper" style="display: none;">
+            <input id="col_filter_method" type="text" class="col_filter_input" data-col="method" placeholder="e.g. GET, POST" aria-label="Filter Method" />
+            <button type="button" class="col_filter_close_btn" data-col="method" title="Clear and close filter" aria-label="Clear filter">&#x2715;</button>
+          </div>
+        </div>
+        <div class="web_event_list_status col_header_cell" data-col="status">
+          <div class="col_header_title_bar">
+            <span class="col_header_title" title="HTTP Response Status Code (e.g. 200 OK, 304, 404, 500, ERROR)">Status</span>
+            <button type="button" class="col_filter_toggle_btn" data-col="status" title="Filter by Status" aria-label="Filter by Status">&#x1F50D;</button>
+          </div>
+          <div class="col_filter_input_wrapper" style="display: none;">
+            <input id="col_filter_status" type="text" class="col_filter_input" data-col="status" placeholder="e.g. 200, 4xx" aria-label="Filter Status" />
+            <button type="button" class="col_filter_close_btn" data-col="status" title="Clear and close filter" aria-label="Clear filter">&#x2715;</button>
+          </div>
+        </div>
+        <div class="web_event_list_date_time col_header_cell" data-col="date">
+          <div class="col_header_title_bar">
+            <span class="col_header_title" title="Timestamp (MM/DD HH:mm:ss) when request was tracked">Date time</span>
+            <button type="button" class="col_filter_toggle_btn" data-col="date" title="Filter by Date time" aria-label="Filter by Date time">&#x1F50D;</button>
+          </div>
+          <div class="col_filter_input_wrapper" style="display: none;">
+            <input id="col_filter_date" type="text" class="col_filter_input" data-col="date" placeholder="Filter date..." aria-label="Filter Date" />
+            <button type="button" class="col_filter_close_btn" data-col="date" title="Clear and close filter" aria-label="Clear filter">&#x2715;</button>
+          </div>
+        </div>
+        <div class="web_event_list_cache col_header_cell" data-col="cache">
+          <div class="col_header_title_bar">
+            <span class="col_header_title" title="True if served directly from cache, false if fetched over network">Cache</span>
+            <button type="button" class="col_filter_toggle_btn" data-col="cache" title="Filter by Cache" aria-label="Filter by Cache">&#x1F50D;</button>
+          </div>
+          <div class="col_filter_input_wrapper" style="display: none;">
+            <input id="col_filter_cache" type="text" class="col_filter_input" data-col="cache" placeholder="true / false" aria-label="Filter Cache" />
+            <button type="button" class="col_filter_close_btn" data-col="cache" title="Clear and close filter" aria-label="Clear filter">&#x2715;</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div id="web_details_selected_container" style="display: none;">
+      <div class="web_event_details_scroll_panel">
+        <table class="web_event_details">
+          <caption class="web_event_list_hide">Selected event details</caption>
+          <thead>
+            <tr>
+              <th id="web_event_detail_request_head" scope="col" class="web_event_detail_request_heading"
+                style="display: none;" title="HTTP Request details and headers sent by the browser">
+                <div class="web_event_detail_heading_wrapper">
+                  <span>Request Details</span>
+                  <button id="copy_curl_button" type="button" class="web_event_button_copy_curl"
+                    title="Copy request as cURL command" aria-label="Copy as cURL">Copy as cURL</button>
+                </div>
+              </th>
+              <th id="web_event_detail_response_head" scope="col" class="web_event_detail_response_heading"
+                style="display: none;" title="HTTP Response details, headers, and cookies returned by the server">
+                <div class="web_event_detail_heading_wrapper">
+                  <span>Response Details</span>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td id="web_event_details_selected_request" class="web_event_detail_td">
+                <table id="request_headers_details" class="web_event_request_header_details">
+                  <caption class="web_event_list_hide">Request header details</caption>
+                  <thead>
+                    <tr class="web_event_list_hide">
+                      <th scope="col">Header Name</th>
+                      <th scope="col">Header Value</th>
+                    </tr>
+                  </thead>
+                  <tbody id="request_headers_details_body"></tbody>
+                </table>
+              </td>
+              <td id="web_event_details_selected_response" class="web_event_detail_td">
+                <table id="response_headers_details" class="web_event_response_header_details">
+                  <caption class="web_event_list_hide">Response header details</caption>
+                  <thead>
+                    <tr class="web_event_list_hide">
+                      <th scope="col">Header Name</th>
+                      <th scope="col">Header Value</th>
+                    </tr>
+                  </thead>
+                  <tbody id="response_headers_details_body"></tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <template id="template_header_row">
+    <div class="single_header_container">
+      <div class="add_header_name">
+        <label for="tmpl_header_name" class="web_event_list_hide"
+          title="Header name to add or modify (e.g. X-Custom-Header, Authorization)">Header name</label>
+        <div class="tracker_input_wrapper">
+          <input id="tmpl_header_name" type="text" class="header_input_name"
+            title="Header name to add or modify (e.g. X-Custom-Header, Authorization)"
+            aria-label="Header name"
+            placeholder="Header name (e.g. X-Custom-Header)" />
+          <div class="input_trailing_icons">
+            <button type="button" class="input_clear_btn"
+              aria-label="Clear header name" title="Clear text" tabindex="-1">&#x2715;</button>
+          </div>
+        </div>
+      </div>
+      <div class="add_header_value">
+        <label for="tmpl_header_value" class="web_event_list_hide"
+          title="Header value to set (e.g. my-token-value, Bearer token)">Header value</label>
+        <div class="tracker_input_wrapper">
+          <input id="tmpl_header_value" type="text"
+            class="header_input_value"
+            title="Header value to set (e.g. my-token-value, Bearer token)"
+            aria-label="Header value"
+            placeholder="Header value (e.g. my-value)" />
+          <div class="input_trailing_icons">
+            <button type="button" class="input_clear_btn"
+              aria-label="Clear header value" title="Clear text" tabindex="-1">&#x2715;</button>
+          </div>
+        </div>
+      </div>
+      <div class="add_header_url">
+        <label for="tmpl_header_url" class="web_event_list_hide"
+          title="Target URL pattern to match (optional: leave blank to apply to all URLs)">Target URL</label>
+        <div class="tracker_input_wrapper">
+          <input id="tmpl_header_url" type="text" class="header_input_url"
+            title="Target URL pattern to match (optional: leave blank to apply to all URLs)"
+            aria-label="Target URL pattern"
+            placeholder="Target URL (blank = all URLs)" />
+          <div class="input_trailing_icons">
+            <button type="button" class="input_clear_btn"
+              aria-label="Clear header URL" title="Clear text" tabindex="-1">&#x2715;</button>
+          </div>
+        </div>
+      </div>
+      <div class="add_header_apply">
+        <input id="tmpl_header_apply" type="checkbox" class="header_input_apply"
+          title="Check this to activate and apply this header modification rule" /><label for="tmpl_header_apply"
+          title="Check this to activate and apply this header modification rule">Apply</label>
+      </div>
+      <div class="header_buttons_container">
+        <button type="button" class="header_button_remove"
+          title="Remove this header modification rule"
+          aria-label="Remove header rule">-</button>
+        <button type="button" style="visibility: hidden;" aria-label="Add header rule">+</button>
+      </div>
+    </div>
+  </template>
+
+  <template id="template_url_row">
+    <div title="Click to view details" class="web_event_list_blank web_event_list_style">
+      <div class="web_event_list_url"></div>
+      <div class="web_event_list_method"></div>
+      <div class="web_event_list_status"></div>
+      <div class="web_event_list_date_time"></div>
+      <div class="web_event_list_cache"></div>
+    </div>
+  </template>
+</body>
+
+</html>

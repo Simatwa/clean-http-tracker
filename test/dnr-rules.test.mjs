@@ -1,0 +1,400 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createTestContext } from './test-helpers.mjs';
+
+describe('DNR Session Rules Unit Tests', () => {
+  describe('updateBlockSessionRules', () => {
+    it('creates block rules with IDs 1000+, urlFilter wildcards, and all resource types', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      await context.updateBlockSessionRules(['doubleclick.net', 'analytics.com']);
+
+      assert.equal(sessionRulesStore.length, 2);
+      assert.deepEqual(sessionRulesStore[0], {
+        id: 1000,
+        priority: 1,
+        action: { type: 'block' },
+        condition: {
+          urlFilter: '*doubleclick.net*',
+          resourceTypes: [
+            'main_frame', 'sub_frame', 'xmlhttprequest', 'other',
+            'script', 'stylesheet', 'image', 'font', 'object', 'media', 'websocket', 'ping', 'csp_report',
+          ],
+        },
+      });
+      assert.deepEqual(sessionRulesStore[1], {
+        id: 1001,
+        priority: 1,
+        action: { type: 'block' },
+        condition: {
+          urlFilter: '*analytics.com*',
+          resourceTypes: [
+            'main_frame', 'sub_frame', 'xmlhttprequest', 'other',
+            'script', 'stylesheet', 'image', 'font', 'object', 'media', 'websocket', 'ping', 'csp_report',
+          ],
+        },
+      });
+    });
+
+    it('accepts string of patterns as well as array', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      await context.updateBlockSessionRules('badsite.com, trackers.org');
+      assert.equal(sessionRulesStore.length, 2);
+      assert.equal(sessionRulesStore[0].condition.urlFilter, '*badsite.com*');
+      assert.equal(sessionRulesStore[1].condition.urlFilter, '*trackers.org*');
+    });
+
+    it('clears previous block rules when empty list is provided', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      await context.updateBlockSessionRules(['badsite.com']);
+      assert.equal(sessionRulesStore.length, 1);
+
+      await context.updateBlockSessionRules([]);
+      assert.equal(sessionRulesStore.length, 0);
+    });
+
+    it('safely caps block rules at MAX_BLOCK_RULES (1000) to prevent ID collision with header rules', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      const largePatterns = Array.from({ length: 1200 }, (_, i) => `tracker-${i}.com`);
+      await context.updateBlockSessionRules(largePatterns);
+      assert.equal(sessionRulesStore.length, 1000);
+      assert.equal(sessionRulesStore[0].id, 1000);
+      assert.equal(sessionRulesStore[999].id, 1999);
+    });
+  });
+
+  describe('updateHeaderModifySessionRules', () => {
+    it('adds valid headers and modifies requestHeaders operation to "set"', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      const headers = [
+        { name: 'X-Custom-Auth', value: 'secret-token', url: 'api.example.com' },
+        { name: 'X-Tenant-Id', value: '42', url: '' },
+      ];
+      await context.updateHeaderModifySessionRules(headers);
+
+      assert.equal(sessionRulesStore.length, 2);
+      assert.deepEqual(sessionRulesStore[0], {
+        id: 2000,
+        priority: 1,
+        action: {
+          type: 'modifyHeaders',
+          requestHeaders: [{
+            header: 'X-Custom-Auth', operation: 'set', value: 'secret-token',
+          }],
+        },
+        condition: {
+          urlFilter: '*api.example.com*',
+          resourceTypes: [
+            'main_frame', 'sub_frame', 'xmlhttprequest', 'other',
+            'script', 'stylesheet', 'image', 'font', 'object', 'media', 'websocket', 'ping', 'csp_report',
+          ],
+        },
+      });
+
+      // Wildcard url fallback when url is empty
+      assert.equal(sessionRulesStore[1].condition.urlFilter, '*');
+    });
+
+    it('rejects forbidden transport and framing headers like Connection and Content-Length', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      const headers = [
+        { name: 'Connection', value: 'keep-alive' },
+        { name: 'Content-Length', value: '123' },
+        { name: 'Keep-Alive', value: 'timeout=5' },
+        { name: 'Transfer-Encoding', value: 'chunked' },
+        { name: 'Upgrade', value: 'websocket' },
+        { name: 'X-Allowed', value: 'ok' },
+      ];
+      await context.updateHeaderModifySessionRules(headers);
+
+      assert.equal(sessionRulesStore.length, 1);
+      assert.equal(sessionRulesStore[0].action.requestHeaders[0].header, 'X-Allowed');
+    });
+
+    it('allows modifying headers like Cookie, Origin, Referer, and Host', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      const headers = [
+        { name: 'Host', value: 'example.com' },
+        { name: 'Cookie', value: 'sessionId=abc123xyz' },
+        { name: 'Origin', value: 'https://trusted.example.com' },
+        { name: 'Referer', value: 'https://trusted.example.com/login' },
+      ];
+      await context.updateHeaderModifySessionRules(headers);
+
+      assert.equal(sessionRulesStore.length, 4);
+      assert.equal(sessionRulesStore[0].action.requestHeaders[0].header, 'Host');
+      assert.equal(sessionRulesStore[1].action.requestHeaders[0].header, 'Cookie');
+      assert.equal(sessionRulesStore[2].action.requestHeaders[0].header, 'Origin');
+      assert.equal(sessionRulesStore[3].action.requestHeaders[0].header, 'Referer');
+    });
+
+    it('rejects forbidden header prefixes like Sec- and Proxy-', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      const headers = [
+        { name: 'Sec-CH-UA', value: 'test' },
+        { name: 'Proxy-Authorization', value: 'Basic 123' },
+        { name: 'X-Sec-Custom', value: 'allowed' },
+      ];
+      await context.updateHeaderModifySessionRules(headers);
+
+      assert.equal(sessionRulesStore.length, 1);
+      assert.equal(sessionRulesStore[0].action.requestHeaders[0].header, 'X-Sec-Custom');
+    });
+
+    it('rejects non-RFC valid header names containing spaces or invalid characters', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      const headers = [
+        { name: 'Invalid Header Name', value: 'test' },
+        { name: 'Header@Name', value: 'test' },
+        { name: 'X-Valid-Token', value: 'test' },
+      ];
+      await context.updateHeaderModifySessionRules(headers);
+
+      assert.equal(sessionRulesStore.length, 1);
+      assert.equal(sessionRulesStore[0].action.requestHeaders[0].header, 'X-Valid-Token');
+    });
+
+    it('safely caps header modify rules at MAX_HEADER_RULES (1000)', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      const largeHeaders = Array.from({ length: 1200 }, (_, i) => ({
+        name: `X-Header-${i}`,
+        value: `val-${i}`,
+      }));
+      await context.updateHeaderModifySessionRules(largeHeaders);
+      assert.equal(sessionRulesStore.length, 1000);
+      assert.equal(sessionRulesStore[0].id, 2000);
+      assert.equal(sessionRulesStore[999].id, 2999);
+    });
+  });
+
+  describe('clearAllSessionRules', () => {
+    it('removes all active session rules when getSessionRules is available', async () => {
+      const { context, sessionRulesStore } = createTestContext();
+      await context.updateBlockSessionRules(['ad.com']);
+      await context.updateHeaderModifySessionRules([{ name: 'X-Test', value: '1' }]);
+      assert.equal(sessionRulesStore.length, 2);
+
+      await context.clearAllSessionRules();
+      assert.equal(sessionRulesStore.length, 0);
+    });
+  });
+
+  describe('Dynamic ResourceType Discovery & Automatic Updates', () => {
+    it('falls back to complete 13 universal types including csp_report when ResourceType is not exposed', () => {
+      const { context } = createTestContext();
+      const types = context.getAllResourceTypes();
+      assert.equal(types.length, 13);
+      assert.ok(types.includes('csp_report'));
+      assert.ok(types.includes('main_frame'));
+      assert.ok(types.includes('websocket'));
+    });
+
+    it('dynamically queries Object.values(ResourceType) when available, auto-including newly added Chrome types', async () => {
+      const { context, mockBrowser, sessionRulesStore } = createTestContext();
+
+      // Simulate Chrome adding a new resource type in a future browser update (e.g. 'webtransport')
+      mockBrowser.declarativeNetRequest.ResourceType = {
+        MAIN_FRAME: 'main_frame',
+        SUB_FRAME: 'sub_frame',
+        STYLESHEET: 'stylesheet',
+        SCRIPT: 'script',
+        IMAGE: 'image',
+        FONT: 'font',
+        OBJECT: 'object',
+        XMLHTTPREQUEST: 'xmlhttprequest',
+        PING: 'ping',
+        CSP_REPORT: 'csp_report',
+        MEDIA: 'media',
+        WEBSOCKET: 'websocket',
+        OTHER: 'other',
+        WEBTRANSPORT: 'webtransport', // Newly added browser type
+      };
+
+      const dynamicTypes = context.getAllResourceTypes();
+      assert.equal(dynamicTypes.length, 14);
+      assert.ok(dynamicTypes.includes('webtransport'));
+
+      // Verify that newly added resource type is automatically populated into generated block rules
+      await context.updateBlockSessionRules(['tracker.com']);
+      assert.equal(sessionRulesStore.length, 1);
+      assert.ok(sessionRulesStore[0].condition.resourceTypes.includes('webtransport'));
+    });
+
+    it('returns extended Firefox resource types (including beacon, imageset, json) when running in Firefox', async () => {
+      const { context, sessionRulesStore } = createTestContext({
+        navigator: { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:120.0) Gecko/20100101 Firefox/120.0' },
+      });
+      assert.equal(context.httpTracker.isFF, true);
+
+      const types = context.getAllResourceTypes();
+      assert.equal(types.length, 19);
+      assert.ok(types.includes('beacon'));
+      assert.ok(types.includes('imageset'));
+      assert.ok(types.includes('json'));
+      assert.ok(types.includes('object_subrequest'));
+      assert.ok(types.includes('speculative'));
+      assert.ok(types.includes('web_manifest'));
+
+      await context.updateBlockSessionRules(['track.net']);
+      assert.equal(sessionRulesStore.length, 1);
+      assert.ok(sessionRulesStore[0].condition.resourceTypes.includes('imageset'));
+      assert.ok(sessionRulesStore[0].condition.resourceTypes.includes('beacon'));
+    });
+  });
+
+  describe('UI Header Rules Synchronization & Validation (httpTrackerHeaderRules)', () => {
+    function setupHeaderRuleDOM(domElements, customGlobals) {
+      const banner = { textContent: 'Modify headers' };
+      domElements.set('add_modify_headers_banner', banner);
+
+      const name0 = { value: '', style: {}, classList: new Set(), focus: () => {} };
+      name0.classList.add = (c) => name0.classList[c] = true;
+      name0.classList.remove = (c) => delete name0.classList[c];
+      const val0 = { value: '' };
+      const url0 = { value: '' };
+      const apply0 = { checked: true };
+      const label0 = { style: {} };
+
+      const container0 = {
+        querySelector: (sel) => {
+          if (sel === '.header_input_name') return name0;
+          if (sel === '.header_input_value') return val0;
+          if (sel === '.header_input_url') return url0;
+          if (sel === '.header_input_apply') return apply0;
+          if (sel === '.add_header_name') return label0;
+          return null;
+        },
+      };
+
+      const containerList = [container0];
+      return { banner, name0, val0, url0, apply0, label0, containerList };
+    }
+
+    it('synchronizes valid UI header rules to DNR and updates banner count', async () => {
+      const { context, sessionRulesStore, domElements } = createTestContext({
+        document: {
+          getElementsByClassName: (cls) => cls === 'single_header_container' ? dom.containerList : [],
+        },
+      });
+      const dom = setupHeaderRuleDOM(domElements);
+
+      dom.name0.value = 'X-API-Key';
+      dom.val0.value = 'secret-999';
+      dom.url0.value = 'api.github.com';
+      dom.apply0.checked = true;
+
+      context.httpTrackerHeaderRules.syncHeaderRulesFromUI();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      assert.equal(sessionRulesStore.length, 1);
+      assert.equal(sessionRulesStore[0].action.requestHeaders[0].header, 'X-API-Key');
+      assert.equal(sessionRulesStore[0].action.requestHeaders[0].value, 'secret-999');
+      assert.equal(sessionRulesStore[0].condition.urlFilter, '*api.github.com*');
+      assert.equal(dom.banner.textContent, 'Modify headers (1)');
+    });
+
+    it('marks invalid or forbidden headers with invalid styling and excludes them from DNR', async () => {
+      const { context, sessionRulesStore, domElements } = createTestContext({
+        document: {
+          getElementsByClassName: (cls) => cls === 'single_header_container' ? dom.containerList : [],
+        },
+      });
+      const dom = setupHeaderRuleDOM(domElements);
+
+      // 1. Forbidden header: Connection
+      dom.name0.value = 'Connection';
+      dom.val0.value = 'close';
+      dom.apply0.checked = true;
+
+      context.httpTrackerHeaderRules.syncHeaderRulesFromUI();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      assert.equal(sessionRulesStore.length, 0);
+      assert.equal(dom.name0.style.borderColor, '#e53e3e');
+      assert.equal(dom.label0.style.color, 'red');
+
+      // 2. Forbidden prefix: Sec-
+      dom.name0.value = 'Sec-Fetch-Dest';
+      context.httpTrackerHeaderRules.syncHeaderRulesFromUI();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      assert.equal(sessionRulesStore.length, 0);
+      assert.equal(dom.name0.style.borderColor, '#e53e3e');
+
+      // 3. Invalid RFC characters (spaces)
+      dom.name0.value = 'Bad Header Name';
+      context.httpTrackerHeaderRules.syncHeaderRulesFromUI();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      assert.equal(sessionRulesStore.length, 0);
+      assert.equal(dom.name0.style.borderColor, '#e53e3e');
+    });
+
+    it('does not send rules to DNR when apply checkbox is unchecked', async () => {
+      const { context, sessionRulesStore, domElements } = createTestContext({
+        document: {
+          getElementsByClassName: (cls) => cls === 'single_header_container' ? dom.containerList : [],
+        },
+      });
+      const dom = setupHeaderRuleDOM(domElements);
+
+      dom.name0.value = 'X-Custom-Header';
+      dom.val0.value = 'valid-val';
+      dom.apply0.checked = false; // Unchecked
+
+      context.httpTrackerHeaderRules.syncHeaderRulesFromUI();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      assert.equal(sessionRulesStore.length, 0);
+      assert.equal(dom.banner.textContent, 'Modify headers (0)');
+    });
+
+    it('clears inputs and unchecks apply when removing row 0 without deleting element', () => {
+      const { context } = createTestContext();
+      const name0 = globalThis.document.getElementById('header_name_0');
+      const val0 = globalThis.document.getElementById('header_value_0');
+      const url0 = globalThis.document.getElementById('header_url_0');
+      const apply0 = globalThis.document.getElementById('header_apply_0');
+
+      name0.value = 'X-Existing';
+      val0.value = 'existing-val';
+      url0.value = 'existing.com';
+      apply0.checked = true;
+
+      context.httpTrackerHeaderRules.removeHeaderRow({ target: { dataset: { headerIndex: '0' } } });
+
+      assert.equal(name0.value, '');
+      assert.equal(val0.value, '');
+      assert.equal(url0.value, '');
+      assert.equal(apply0.checked, false);
+    });
+
+    it('removes container from DOM when removing dynamic row with index > 0', () => {
+      const { context } = createTestContext();
+      let removed = false;
+      const fakeContainer = {
+        remove: () => { removed = true; },
+      };
+      const fakeTarget = {
+        dataset: { headerIndex: '1' },
+        closest: (sel) => sel === '.single_header_container' ? fakeContainer : null,
+      };
+
+      context.httpTrackerHeaderRules.removeHeaderRow({ target: fakeTarget });
+      assert.equal(removed, true);
+    });
+  });
+
+  describe('Version Parity Verification', () => {
+    it('ensures package.json and manifest.json versions are strictly identical', async () => {
+      const fs = await import('node:fs');
+      const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+      const manifest = JSON.parse(fs.readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+
+      assert.strictEqual(
+        pkg.version,
+        manifest.version,
+        `Version mismatch! package.json (${pkg.version}) must match manifest.json (${manifest.version}). Run "npm run set-version <version>" to sync them.`
+      );
+    });
+  });
+});

@@ -1,0 +1,132 @@
+<div align="center">
+  <p>
+    <img src="src/assets/icon_128px.png" width="48" height="48" alt="HTTP-TRACKER Icon" style="vertical-align: middle;">
+  </p>
+  <h1>HTTP-TRACKER</h1>
+  <p><strong>A powerful browser extension that brings your network traffic into one central place — across all tabs, all windows, even incognito.</strong></p>
+  <p>
+    <a href="https://github.com/venukbh/http-tracker/releases"><img src="https://img.shields.io/badge/version-3.2.0-blue?style=for-the-badge" alt="Version"></a>
+    <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img src="https://img.shields.io/badge/Manifest-V3-green?style=for-the-badge" alt="Manifest V3"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-orange?style=for-the-badge" alt="License"></a>
+    <a href="https://chrome.google.com/webstore/detail/http-tracker/fklakbbaaknbgcedidhblbnhclijnhbi"><img src="https://img.shields.io/badge/Chrome-Extension-yellow?style=for-the-badge&logo=google-chrome" alt="Chrome Extension"></a>
+    <a href="https://addons.mozilla.org/en-US/firefox/addon/http-tracker/"><img src="https://img.shields.io/badge/Firefox-Add--on-red?style=for-the-badge&logo=firefox" alt="Firefox Add-on"></a>
+  </p>
+</div>
+
+---
+
+## 🚀 What is HTTP-TRACKER?
+
+HTTP-TRACKER is a browser extension that tracks all network activity in your browser — Chrome and Firefox. Everything you can see in the browser's built-in Network tab, and more, is available through this extension in a **single centralized window**.
+
+Unlike the built-in DevTools, HTTP-TRACKER aggregates requests from **all open tabs** and **all windows** — including private/incognito tabs (when permission is granted) — giving you a unified view of everything your browser is doing on the network.
+
+---
+
+## 🆕 What's New in v3.1.0
+
+- ⚡ **HTML `<template>` Engine**: Native browser template cloning for near-instant DOM instantiation, avoiding string parsing overhead.
+- 🛡️ **Blocked Request Metadata Inspection**: Retains and displays Method, URL, and Initiator even when requests are blocked early by ad-blockers or rules (`ERR_BLOCKED_BY_CLIENT`).
+- ✏️ **Expanded Header Injection**: Full support for overriding `Cookie`, `Referer`, `Origin`, and `Host` headers via DeclarativeNetRequest session rules.
+- 🍪 **RFC 6265 Cookie Normalization**: Correct domain cookie deduplication and safe deletion handling leading dot differences (`.domain.com` vs `domain.com`).
+- 🧪 **106 Automated Unit & Integration Tests**: Comprehensive zero-dependency test runner suite (`node:test`) covering pure algorithms, filtering, masking, real payload playback, and cross-browser Chrome/Firefox compatibility.
+- 🚀 **Automated GitHub Actions CI/CD**: Automatic testing on pull requests and automated release packaging with `.DS_Store` elimination.
+
+---
+
+## ✨ Features
+
+### 🔍 Network Tracking
+
+- 📡 Tracks **all network traffic** across all tabs, all windows, and background contexts in real time
+- 🌐 Covers **HTTP, HTTPS**, and **WebSocket (`ws://`, `wss://`)** connections
+- 📦 Intercepts all resource types: **Fetch API, XHR, Scripts, Stylesheets, Images, Fonts, Media, Iframes, and Beacons (`navigator.sendBeacon`)**
+- 🔄 **Full lifecycle tracking from request to response** (capturing request headers, payload bodies, response headers, cookies, redirects, and blocked/failed requests)
+- 🕵️ Supports **private/incognito window** tracking when extension permission is granted
+- ⚡ Fully **async and non-blocking** — zero added latency to your browsing
+
+### 🎯 Filtering & Pattern Matching
+
+- ✅ **Include filter** — set patterns so only matching URLs are tracked (`Track URLs having`)
+- 🚫 **Exclude filter** — skip URLs containing specific patterns (`Skip URLs having`)
+- 🔒 **Block URLs** — simulate ad-block or 404 behavior for specific URL patterns
+- 🔎 Filter captured requests by **URL, method, status, date, cache**
+- 🔗 Use `&` (AND) and `|` (OR) operators for advanced filter expressions
+
+### 💾 Persistent Preferences
+
+- 🌍 Set **global exclude/include/block/mask patterns** via the options page
+- 🔄 Patterns persist across extension restarts — no repetitive re-entry
+
+### 🛠️ Request Header Injection
+
+- ➕ **Add or modify request headers** on the fly without leaving the browser
+- 🌐 Apply headers globally (all URLs) or scoped to a specific URL pattern
+- ⚠️ Automatically validates against forbidden headers with a visual red-border indicator
+- ✔️ Use the **Apply** checkbox to control exactly when a header is activated
+
+### 🛡️ Privacy & Security
+
+- 🎭 **Mask sensitive data** — shows only the first and last character, replacing the rest with `*****`
+- 📋 Perfect for sharing screenshots without exposing credentials or tokens
+
+### 🍪 Cookie Management
+
+- 🔤 Displays request cookies **sorted** (symbols first, then 0–9, then Aa–Zz case-insensitive)
+- 🧹 **Optimize response cookies** — resolves the final value when duplicate cookies exist
+
+### 🔦 Find in Details
+
+- 🔎 Search across all header keys, values, cookies, and body of the **selected request** using the Find field
+- 🟡 Matches are **highlighted inline** using `<mark>` so you can spot values instantly without scrolling
+- Supports **regular expressions** — e.g. `token.*value` to match patterns across header content
+- Case-insensitive and matches **all occurrences** simultaneously
+
+### 🖱️ UX Controls
+
+- 📋 **Copy as cURL** — One-click export of any selected request into an executable, shell-escaped cURL command (with HTTP method, headers, cookies, and JSON/form-data payload) with instant visual feedback
+- ⏸️ **Pause tracking** without closing the extension — hold data for reference
+- 🗑️ Delete all captured data, selected pairs, or all filtered results
+- 📋 Captures **form data** in requests (when the option is enabled)
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Platform   | Shortcut           |
+| ---------- | ------------------ |
+| 🍎 macOS   | `CMD + SHIFT + 1`  |
+| 🪟 Windows | `CTRL + SHIFT + 1` |
+
+---
+
+## 📸 Screenshot
+
+![HTTP-TRACKER in action](screenshots/v2.2.5.jpg)
+
+---
+
+## 📦 Installation
+
+### Chrome
+
+[![Install from Chrome Web Store](https://img.shields.io/badge/Install-Chrome_Web_Store-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/http-tracker/fklakbbaaknbgcedidhblbnhclijnhbi)
+[![Rate on Chrome Web Store](https://img.shields.io/badge/⭐_Rate-Chrome_Web_Store-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/http-tracker/fklakbbaaknbgcedidhblbnhclijnhbi)
+
+### Firefox
+
+[![Install from Firefox Add-ons](https://img.shields.io/badge/Install-Firefox_Add--ons-FF7139?style=for-the-badge&logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/http-tracker/)
+[![Rate on Firefox Add-ons](https://img.shields.io/badge/⭐_Rate-Firefox_Add--ons-FF7139?style=for-the-badge&logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/http-tracker/)
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+<div align="center">
+  <p>Made with ❤️ for developers who live in the network tab.</p>
+  <p>⭐ If you find this useful, please star the repo and leave a review!</p>
+</div>

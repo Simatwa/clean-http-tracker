@@ -1,0 +1,28 @@
+{
+    "name": "http-tracker",
+    "description": "",
+    "version": "3.2.0",
+    "repository": {
+        "type": "git",
+        "url": ""
+    },
+    "keywords": [],
+    "author": "Venu Madhav",
+    "license": "MIT",
+    "bugs": {},
+    "homepage": "",
+    "dependencies": {},
+    "devDependencies": {
+        "eslint": "^8.22.0",
+        "eslint-config-google": "^0.14.0"
+    },
+    "scripts": {
+        "test": "node scripts/run-tests.mjs",
+        "lint-fix": "eslint . --fix",
+        "lint": "eslint .",
+        "build": "npm run lint",
+        "set-version": "node scripts/set-version.mjs",
+        "package": "node scripts/package.mjs",
+        "package:verify": "unzip -l archives/http-tracker-chrome-$(node -e \"process.stdout.write(require('./manifest.json').version)\").zip && unzip -l archives/http-tracker-firefox-$(node -e \"process.stdout.write(require('./manifest.json').version)\").zip"
+    }
+}

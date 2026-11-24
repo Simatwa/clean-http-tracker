@@ -1,0 +1,53 @@
+{
+  "author": "Venu Madhav",
+  "background": {
+    "service_worker": "/src/js/service-worker.js"
+  },
+  "description": "Real-time network monitor & HTTP inspector: track headers and cookies, export cURL, block URLs, and modify outgoing headers.",
+  "manifest_version": 3,
+  "minimum_chrome_version": "102",
+  "name": "HTTP-TRACKER",
+  "permissions": [
+    "cookies",
+    "declarativeNetRequest",
+    "storage",
+    "tabs",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "version": "3.2.0",
+  "action": {
+    "default_icon": {
+      "16": "/src/assets/icon_16px.png",
+      "32": "/src/assets/icon_32px.png"
+    },
+    "default_title": "HTTP-TRACKER: Network Monitor & HTTP Inspector (Ctrl+Shift+1)"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+1"
+      },
+      "description": "Open HTTP-TRACKER if not opened, or bring to front if already opened"
+    }
+  },
+  "options_ui": {
+    "page": "/src/html/options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "/src/assets/icon_16px.png",
+    "32": "/src/assets/icon_32px.png",
+    "48": "/src/assets/icon_48px.png",
+    "128": "/src/assets/icon_128px.png",
+    "320": "/src/assets/icon_320px.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{2939349f-b516-4674-afa4-4dc8311a75ef}",
+      "strict_min_version": "113.0"
+    }
+  }
+}
