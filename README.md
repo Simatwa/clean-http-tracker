@@ -1,11 +1,11 @@
 <div align="center">
   <p>
-    <img src="src/assets/icon_128px.png" width="48" height="48" alt="HTTP-TRACKER Icon" style="vertical-align: middle;">
+    <img src="src/assets/icon_128px.png" width="48" height="48" alt="Clean Http Tracker Icon" style="vertical-align: middle;">
   </p>
-  <h1>HTTP-TRACKER</h1>
+  <h1>Clean Http Tracker</h1>
   <p><strong>A powerful browser extension that brings your network traffic into one central place — across all tabs, all windows, even incognito.</strong></p>
   <p>
-    <a href="https://github.com/venukbh/http-tracker/releases"><img src="https://img.shields.io/badge/version-3.2.0-blue?style=for-the-badge" alt="Version"></a>
+    <a href="https://github.com/smartwa/clean-http-tracker/releases"><img src="https://img.shields.io/badge/version-3.2.0-blue?style=for-the-badge" alt="Version"></a>
     <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img src="https://img.shields.io/badge/Manifest-V3-green?style=for-the-badge" alt="Manifest V3"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-orange?style=for-the-badge" alt="License"></a>
     <a href="https://chrome.google.com/webstore/detail/http-tracker/fklakbbaaknbgcedidhblbnhclijnhbi"><img src="https://img.shields.io/badge/Chrome-Extension-yellow?style=for-the-badge&logo=google-chrome" alt="Chrome Extension"></a>
@@ -15,11 +15,11 @@
 
 ---
 
-## 🚀 What is HTTP-TRACKER?
+## 🚀 What is Clean Http Tracker?
 
-HTTP-TRACKER is a browser extension that tracks all network activity in your browser — Chrome and Firefox. Everything you can see in the browser's built-in Network tab, and more, is available through this extension in a **single centralized window**.
+Clean Http Tracker is a browser extension that tracks all network activity in your browser — Chrome and Firefox. Everything you can see in the browser's built-in Network tab, and more, is available through this extension in a **single centralized window**.
 
-Unlike the built-in DevTools, HTTP-TRACKER aggregates requests from **all open tabs** and **all windows** — including private/incognito tabs (when permission is granted) — giving you a unified view of everything your browser is doing on the network.
+Unlike the built-in DevTools, Clean Http Tracker aggregates requests from **all open tabs** and **all windows** — including private/incognito tabs (when permission is granted) — giving you a unified view of everything your browser is doing on the network.
 
 ---
 
@@ -102,7 +102,7 @@ Unlike the built-in DevTools, HTTP-TRACKER aggregates requests from **all open t
 
 ## 📸 Screenshot
 
-![HTTP-TRACKER in action](screenshots/v2.2.5.jpg)
+![Clean Http Tracker in action](screenshots/v2.2.5.jpg)
 
 ---
 

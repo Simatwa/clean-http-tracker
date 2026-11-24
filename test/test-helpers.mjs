@@ -15,7 +15,7 @@ export function createTestContext(customGlobals = {}) {
       getURL: (path = '') => `chrome-extension://mock-id/${path.replace(/^\//, '')}`,
       getManifest: () => ({
         version: '3.2.0',
-        action: { default_title: 'HTTP-TRACKER' },
+        action: { default_title: 'Clean Http Tracker' },
       }),
       lastError: null,
       connect: () => ({
@@ -133,7 +133,7 @@ export function createTestContext(customGlobals = {}) {
     if (node.id) attrs += ` id="${node.id}"`;
     if (node.colSpan) attrs += ` colspan="${node.colSpan}"`;
     if (node.style && typeof node.style === 'object') {
-      const entries = Object.entries(node.style);
+      const entries = Object.entries(node.style).filter(([k, v]) => typeof v !== 'function');
       if (entries.length > 0) {
         const styleStr = entries.map(([k, v]) => {
           const cssK = k.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -171,7 +171,11 @@ export function createTestContext(customGlobals = {}) {
       value: '',
       checked: false,
       disabled: false,
-      style: {},
+      style: Object.create({
+        removeProperty: function(prop) {
+          delete this[prop];
+        },
+      }),
       dataset: {},
       children: [],
       parentElement: null,
@@ -210,17 +214,37 @@ export function createTestContext(customGlobals = {}) {
           if (force) { classSet.add(cls); return true; }
           classSet.delete(cls); return false;
         },
-        contains: (cls) => classSet.has(cls),
+        contains: (cls) => classSet.has(cls) || (typeof el.className === 'string' && el.className.split(/\s+/).includes(cls)),
       },
       querySelector: () => null,
       querySelectorAll: () => [],
+      closest: function(selector) {
+        if (!selector) return null;
+        let cur = this;
+        while (cur) {
+          if (selector.startsWith('.') && cur.classList?.contains?.(selector.slice(1))) {
+            return cur;
+          }
+          if (selector.startsWith('#') && cur.id === selector.slice(1)) {
+            return cur;
+          }
+          if (cur.tagName?.toLowerCase() === selector.toLowerCase()) {
+            return cur;
+          }
+          cur = cur.parentElement;
+        }
+        return null;
+      },
       replaceChildren: function(...args) {
         this.children = args;
         this._rawInnerHTML = '';
         this._textContent = '';
       },
       appendChild: function(child) {
-        this.children.push(child);
+        if (child) {
+          child.parentElement = this;
+          this.children.push(child);
+        }
         return child;
       },
       addEventListener: function(evt, fn) {
@@ -233,7 +257,24 @@ export function createTestContext(customGlobals = {}) {
         const type = typeof evt === 'string' ? evt : evt?.type;
         (this._listeners?.[type] || []).forEach(fn => fn(evt));
       },
-      remove: () => {},
+      remove: function() {
+        if (this.id) {
+          deletedIds.add(this.id);
+          domElements.delete(this.id);
+        }
+        if (this.parentElement && Array.isArray(this.parentElement.children)) {
+          const idx = this.parentElement.children.indexOf(this);
+          if (idx !== -1) {
+            this.parentElement.children.splice(idx, 1);
+          }
+        }
+        for (const child of this.children || []) {
+          if (child.id) {
+            deletedIds.add(child.id);
+            domElements.delete(child.id);
+          }
+        }
+      },
     };
     if (id) {
       domElements.set(id, el);
@@ -241,17 +282,34 @@ export function createTestContext(customGlobals = {}) {
     return el;
   };
 
+  const deletedIds = new Set();
   const domElements = new Map();
   const getOrCreateElement = (id) => {
-    if (!domElements.has(id)) {
-      domElements.set(id, createMockElement('DIV', id));
+    if (deletedIds.has(id)) {
+      return null;
     }
-    return domElements.get(id);
+    if (domElements.has(id)) {
+      return domElements.get(id);
+    }
+    const el = createMockElement('DIV', id);
+    if (id === 'include_form_data' || id === 'optimize_response_cookies' || id === 'enable_mask_patterns') {
+      el.checked = true;
+    }
+    domElements.set(id, el);
+    return el;
   };
 
   const mockDocument = {
     getElementById: (id) => getOrCreateElement(id),
-    getElementsByClassName: (cls) => [],
+    getElementsByClassName: (cls) => {
+      const results = [];
+      for (const el of domElements.values()) {
+        if (!deletedIds.has(el.id) && el.classList?.contains?.(cls)) {
+          results.push(el);
+        }
+      }
+      return results;
+    },
     querySelectorAll: (sel) => [],
     createElement: (tag) => createMockElement(tag),
     createTextNode: (text) => ({ nodeType: 3, textContent: String(text) }),

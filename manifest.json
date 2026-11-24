@@ -6,13 +6,15 @@
   "description": "Real-time network monitor & HTTP inspector: track headers and cookies, export cURL, block URLs, and modify outgoing headers.",
   "manifest_version": 3,
   "minimum_chrome_version": "102",
-  "name": "HTTP-TRACKER",
+  "name": "Clean Http Tracker",
   "permissions": [
     "cookies",
     "declarativeNetRequest",
     "storage",
     "tabs",
-    "webRequest"
+    "webRequest",
+    "webRequestBlocking",
+    "webRequestFilterResponse"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -23,14 +25,14 @@
       "16": "/src/assets/icon_16px.png",
       "32": "/src/assets/icon_32px.png"
     },
-    "default_title": "HTTP-TRACKER: Network Monitor & HTTP Inspector (Ctrl+Shift+1)"
+    "default_title": "Clean Http Tracker: Network Monitor & HTTP Inspector (Ctrl+Shift+1)"
   },
   "commands": {
     "_execute_action": {
       "suggested_key": {
         "default": "Ctrl+Shift+1"
       },
-      "description": "Open HTTP-TRACKER if not opened, or bring to front if already opened"
+      "description": "Open Clean Http Tracker if not opened, or bring to front if already opened"
     }
   },
   "options_ui": {

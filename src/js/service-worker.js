@@ -10,7 +10,7 @@ const connectedTrackerPorts = new Set();
 const clearRules = () => clearAllSessionRules().catch(onError);
 
 httpTracker.browser.runtime.onConnect.addListener((port) => {
-  if (port.name === 'http-tracker-session') {
+  if (port.name === 'clean-http-tracker-session' || port.name === 'http-tracker-session') {
     connectedTrackerPorts.add(port);
     port.onDisconnect.addListener(() => {
       connectedTrackerPorts.delete(port);

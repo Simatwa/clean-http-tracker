@@ -107,7 +107,7 @@ describe('Strict Origin Tab & Window Deduplication Tests', () => {
         PAGE_PATH_OPTIONS: '/src/html/options.html',
         STORAGE_KEY_OPEN_ADDON_IN_TAB: 'httpTracker_OpenAddonInTab',
       },
-      () => ({ title: 'HTTP-TRACKER' }),
+      () => ({ title: 'Clean Http Tracker' }),
       (obj, key) => obj?.[key],
       () => {},
       () => {}

@@ -20,9 +20,109 @@ function checkWireProtocol(url) {
 
 const reqBodyHeaders = httpTracker.isFF ? ['requestBody'] : ['requestBody', 'extraHeaders'];
 const reqHeaders = httpTracker.isFF ? ['requestHeaders'] : ['requestHeaders', 'extraHeaders'];
+const resHeadersWithBlocking = httpTracker.isFF ? ['responseHeaders', 'blocking'] : ['responseHeaders', 'extraHeaders'];
 const resHeaders = httpTracker.isFF ? ['responseHeaders'] : ['responseHeaders', 'extraHeaders'];
 const errorHeaders = ['extraHeaders'];
 const webRequest = httpTracker.browser.webRequest;
+
+function attachResponseFilter(details) {
+  if (!httpTracker.isFF || !webRequest || typeof webRequest.filterResponseData !== 'function') {
+    return;
+  }
+  try {
+    const filter = webRequest.filterResponseData(details.requestId);
+    const chunks = [];
+    const MAX_RESPONSE_CAPTURE_BYTES = 5 * 1024 * 1024;
+    let capturedBytes = 0;
+
+    filter.ondata = (event) => {
+      try {
+        filter.write(event.data);
+      } catch (err) {}
+      if (capturedBytes < MAX_RESPONSE_CAPTURE_BYTES) {
+        chunks.push(event.data);
+        capturedBytes += event.data.byteLength;
+      }
+    };
+
+    filter.onstop = () => {
+      try {
+        filter.close();
+      } catch (err) {}
+      if (chunks.length > 0) {
+        const totalLength = chunks.reduce((acc, c) => acc + c.byteLength, 0);
+        const combined = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          combined.set(new Uint8Array(chunk), offset);
+          offset += chunk.byteLength;
+        }
+
+        const rawBuffer = combined.buffer;
+        const dv = new DataView(rawBuffer);
+        const compression = typeof detectCompressionType === 'function' ? detectCompressionType(dv) : '';
+        if (typeof DecompressionStream !== 'undefined' && (compression === 'gzip' || compression === 'deflate')) {
+          const ds = new DecompressionStream(compression);
+          const writer = ds.writable.getWriter();
+          writer.write(rawBuffer);
+          writer.close();
+          const reader = ds.readable.getReader();
+          const decompressedChunks = [];
+          (async () => {
+            try {
+              while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                decompressedChunks.push(value);
+              }
+              const decompLen = decompressedChunks.reduce((acc, c) => acc + c.byteLength, 0);
+              const decompResult = new Uint8Array(decompLen);
+              let dOffset = 0;
+              for (const dc of decompressedChunks) {
+                decompResult.set(dc, dOffset);
+                dOffset += dc.byteLength;
+              }
+              eventTracker.processWebEvent({
+                callerName: 'onResponseBody',
+                requestId: details.requestId,
+                requestIdEnhanced: details.requestIdEnhanced || details.requestId,
+                responseBody: {
+                  raw: [{ bytes: decompResult.buffer }],
+                },
+              });
+            } catch (err) {
+              eventTracker.processWebEvent({
+                callerName: 'onResponseBody',
+                requestId: details.requestId,
+                requestIdEnhanced: details.requestIdEnhanced || details.requestId,
+                responseBody: {
+                  raw: [{ bytes: rawBuffer }],
+                },
+              });
+            }
+          })();
+        } else {
+          eventTracker.processWebEvent({
+            callerName: 'onResponseBody',
+            requestId: details.requestId,
+            requestIdEnhanced: details.requestIdEnhanced || details.requestId,
+            responseBody: {
+              raw: [{ bytes: rawBuffer }],
+            },
+          });
+        }
+      }
+    };
+
+    filter.onerror = () => {
+      try {
+        filter.disconnect();
+      } catch (err) {}
+    };
+  } catch (e) {
+    // filterResponseData throws on internal/special requests or if already hooked
+  }
+}
 
 function forwardEvent(eventName) {
   return function(details) {
@@ -38,6 +138,9 @@ function forwardEvent(eventName) {
         details.fromCache = 'Internal';
       }
     }
+    if (eventName === 'onHeadersReceived') {
+      attachResponseFilter(details);
+    }
     eventTracker.processWebEvent(details);
   };
 }
@@ -46,8 +149,8 @@ const LISTENER_CONFIG = [
   {event: 'onBeforeRequest', headers: reqBodyHeaders},
   {event: 'onBeforeSendHeaders', headers: reqHeaders},
   {event: 'onSendHeaders', headers: reqHeaders},
-  {event: 'onHeadersReceived', headers: resHeaders},
-  {event: 'onAuthRequired', headers: resHeaders},
+  {event: 'onHeadersReceived', headers: resHeadersWithBlocking},
+  {event: 'onAuthRequired', headers: resHeadersWithBlocking},
   {event: 'onBeforeRedirect', headers: resHeaders},
   {event: 'onResponseStarted', headers: resHeaders},
   {event: 'onCompleted', headers: resHeaders},

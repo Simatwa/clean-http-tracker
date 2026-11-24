@@ -8,7 +8,7 @@ describe("What's New Release Notes Page & Update Trigger Tests", () => {
       assert.ok(existsSync('src/html/whats-new.html'), 'whats-new.html must exist');
       const html = readFileSync('src/html/whats-new.html', 'utf8');
       assert.ok(html.includes('<!DOCTYPE html>'));
-      assert.ok(html.includes('<title>What\'s New in HTTP-TRACKER</title>'));
+      assert.ok(html.includes('<title>What\'s New in Clean Http Tracker</title>'));
       assert.ok(html.includes('id="wn_open_tracker"'));
       assert.ok(html.includes('id="wn_open_options"'));
     });
@@ -121,7 +121,7 @@ describe("What's New Release Notes Page & Update Trigger Tests", () => {
           browser: mockBrowser,
           PAGE_PATH_WHATS_NEW: '/src/html/whats-new.html',
         },
-        () => ({ title: 'HTTP-TRACKER' }),
+        () => ({ title: 'Clean Http Tracker' }),
         () => undefined,
         () => {},
         () => {}
@@ -600,7 +600,7 @@ describe("What's New Release Notes Page & Update Trigger Tests", () => {
       const html = readFileSync('src/html/http-tracker.html', 'utf8');
       assert.ok(html.includes('class="tracker_brand_icon"'), 'Must have branding logo icon');
       assert.ok(html.includes('/src/assets/icon_32px.png'), 'Must reference existing extension icon asset');
-      assert.ok(html.includes('HTTP-TRACKER'), 'Must display HTTP-TRACKER title');
+      assert.ok(html.includes('Clean Http Tracker'), 'Must display Clean Http Tracker title');
       assert.ok(html.includes('id="fidelity_badge"'), 'Must have fidelity badge element');
       assert.ok(html.includes('Genuine network transactions rather than browser-generated internal URL rewrites'), 'Must feature genuine network transactions text');
     });

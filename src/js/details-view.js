@@ -113,6 +113,7 @@ const httpTrackerDetailsView = (function() {
     requestEvent,
     responseEvent,
     requestBody,
+    responseBody,
     maskPatterns,
     isMaskEnabled,
     optimizeResponseCookies,
@@ -121,6 +122,7 @@ const httpTrackerDetailsView = (function() {
     const requestRows = buildURLDetailsRows(requestEvent, 'requestDetails', maskPatterns, isMaskEnabled, compiledFindPattern, false, responseEvent);
     const responseRows = buildURLDetailsRows(responseEvent, 'responseDetails', maskPatterns, isMaskEnabled, compiledFindPattern, optimizeResponseCookies, requestEvent);
     const requestFormRows = buildRequestFormRows(requestBody, maskPatterns, isMaskEnabled, compiledFindPattern);
+    const responseBodyRows = buildResponseBodyRows(responseBody, maskPatterns, isMaskEnabled, compiledFindPattern);
 
     const reqEl = getById('web_event_details_selected_request');
     const resEl = getById('web_event_details_selected_response');
@@ -144,10 +146,10 @@ const httpTrackerDetailsView = (function() {
     const resBodyEl = getById('response_headers_details_body') || getById('response_headers_details');
     if (resBodyEl) {
       if (typeof resBodyEl.replaceChildren === 'function') {
-        resBodyEl.replaceChildren(...responseRows);
+        resBodyEl.replaceChildren(...responseRows, ...responseBodyRows);
       } else {
         resBodyEl.textContent = '';
-        responseRows.forEach((r) => resBodyEl.appendChild(r));
+        [...responseRows, ...responseBodyRows].forEach((r) => resBodyEl.appendChild(r));
       }
     }
 
@@ -314,6 +316,77 @@ const httpTrackerDetailsView = (function() {
     return rows;
   }
 
+  function buildResponseBodyRows(webEventIdResponseBody, maskPatterns, isMaskEnabled, compiledFindPattern) {
+    const rows = [];
+    if (webEventIdResponseBody) {
+      if (webEventIdResponseBody.formData) {
+        rows.push(renderBannerRow('Body (form fields data)'));
+        Object.entries(webEventIdResponseBody.formData).forEach(([key, value]) => {
+          rows.push(renderKeyValueRow(key, value, maskPatterns, isMaskEnabled, compiledFindPattern));
+        });
+      } else if (webEventIdResponseBody.raw) {
+        rows.push(renderBannerRow('Body (response data)'));
+        for (const eachByte of webEventIdResponseBody.raw) {
+          if (!eachByte.bytes) {
+            continue;
+          }
+          const dataView = new DataView(eachByte.bytes);
+          const decodedString = decoder.decode(dataView);
+          if (isBinaryData(decodedString)) {
+            const type = detectCompressionType(dataView);
+            const binarySpan = document.createElement('span');
+            binarySpan.style.color = '#888';
+            binarySpan.style.fontStyle = 'italic';
+            binarySpan.textContent = `[Binary data \u2014 ${dataView.byteLength} bytes, likely ${type}. Cannot display compressed content.]`;
+            rows.push(renderMessageRow(binarySpan));
+          } else {
+            const tr = document.createElement('tr');
+            tr.style.whiteSpace = 'pre-wrap';
+            tr.style.wordBreak = 'break-all';
+            const td = document.createElement('td');
+            td.colSpan = 2;
+            appendMarkedText(td, decodedString, compiledFindPattern);
+            tr.appendChild(td);
+            rows.push(tr);
+          }
+        }
+      } else if (typeof webEventIdResponseBody === 'string') {
+        rows.push(renderBannerRow('Body (response data)'));
+        const tr = document.createElement('tr');
+        tr.style.whiteSpace = 'pre-wrap';
+        tr.style.wordBreak = 'break-all';
+        const td = document.createElement('td');
+        td.colSpan = 2;
+        appendMarkedText(td, webEventIdResponseBody, compiledFindPattern);
+        tr.appendChild(td);
+        rows.push(tr);
+      } else if (typeof webEventIdResponseBody.body === 'string') {
+        rows.push(renderBannerRow('Body (response data)'));
+        const tr = document.createElement('tr');
+        tr.style.whiteSpace = 'pre-wrap';
+        tr.style.wordBreak = 'break-all';
+        const td = document.createElement('td');
+        td.colSpan = 2;
+        appendMarkedText(td, webEventIdResponseBody.body, compiledFindPattern);
+        tr.appendChild(td);
+        rows.push(tr);
+      } else if (typeof webEventIdResponseBody === 'object' && !webEventIdResponseBody.error) {
+        rows.push(renderBannerRow('Body (response data)'));
+        Object.entries(webEventIdResponseBody).forEach(([key, value]) => {
+          const valStr = typeof value === 'object' ? JSON.stringify(value) : value;
+          rows.push(renderKeyValueRow(key, valStr, maskPatterns, isMaskEnabled, compiledFindPattern));
+        });
+      } else if (webEventIdResponseBody.error) {
+        rows.push(renderBannerRow('Body (response data)'));
+        const errorSpan = document.createElement('span');
+        errorSpan.className = 'web_event_style_warning';
+        errorSpan.textContent = `[⚠️ Response body unavailable: ${webEventIdResponseBody.error}]`;
+        rows.push(renderMessageRow(errorSpan, 'center'));
+      }
+    }
+    return rows;
+  }
+
   function generateHeaderDetails(headers, optimizeResponseCookies, maskPatterns, isMaskEnabled, compiledFindPattern) {
     const generalHeaderRows = [];
     let bannerTitle = 'Cookies (sorted: symbols, 0-9, Aa-Zz)'; // request cookies
@@ -430,5 +503,7 @@ const httpTrackerDetailsView = (function() {
     renderSelectedEventDetails,
     clearDetailsView,
     deleteCookiesForSelectedDomain,
+    buildResponseBodyRows,
+    buildRequestFormRows,
   };
 })();

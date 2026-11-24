@@ -3,6 +3,7 @@ const httpTrackerEventCache = (function() {
   const allRequestHeaders = new Map();
   const allResponseHeaders = new Map();
   const requestFormData = new Map();
+  const responseBodyData = new Map();
   const requestIdRedirectCount = new Map();
 
   function setRedirectCount(webEvent) {
@@ -77,6 +78,12 @@ const httpTrackerEventCache = (function() {
     }
   }
 
+  function insertResponseBody(webEvent) {
+    if (webEvent.responseBody) {
+      responseBodyData.set(webEvent.requestIdEnhanced, webEvent.responseBody);
+    }
+  }
+
   function insertInitialRequest(webEvent) {
     const existing = allRequestHeaders.get(webEvent.requestIdEnhanced);
     if (!existing) {
@@ -138,6 +145,11 @@ const httpTrackerEventCache = (function() {
     onHeadersReceived:   (e) => insertResponseHeaders(e),
     onResponseStarted:   (e) => insertResponseHeaders(e),
     onCompleted:         (e) => insertResponseHeaders(e),
+    onResponseBody:      (e, captureFormData) => {
+      if (captureFormData) {
+        insertResponseBody(e);
+      }
+    },
     onErrorOccurred:     (e) => insertErrorOccurred(e),
   };
 
@@ -150,6 +162,9 @@ const httpTrackerEventCache = (function() {
       handleRedirect(webEvent);
     } else {
       CALLER_ACTION_MAP[webEvent.callerName]?.(webEvent, captureFormData);
+    }
+    if (captureFormData && webEvent.responseBody) {
+      insertResponseBody(webEvent);
     }
   }
 
@@ -173,6 +188,10 @@ const httpTrackerEventCache = (function() {
     return requestFormData.get(requestIdEnhanced);
   }
 
+  function getResponseBody(requestIdEnhanced) {
+    return responseBodyData.get(requestIdEnhanced);
+  }
+
   function removeEntry(requestIdToRemove) {
     if (!requestIdToRemove) {
       return;
@@ -180,11 +199,13 @@ const httpTrackerEventCache = (function() {
     allRequestHeaders.delete(requestIdToRemove);
     allResponseHeaders.delete(requestIdToRemove);
     requestFormData.delete(requestIdToRemove);
+    responseBodyData.delete(requestIdToRemove);
     addedRequestId.delete(requestIdToRemove);
   }
 
   function clearAll() {
     requestFormData.clear();
+    responseBodyData.clear();
     allRequestHeaders.clear();
     allResponseHeaders.clear();
     addedRequestId.clear();
@@ -196,6 +217,7 @@ const httpTrackerEventCache = (function() {
     getRedirectCount,
     handleRedirect,
     insertRequestBody,
+    insertResponseBody,
     insertInitialRequest,
     insertRequestHeaders,
     insertResponseHeaders,
@@ -204,6 +226,7 @@ const httpTrackerEventCache = (function() {
     getRequest,
     getResponse,
     getRequestBody,
+    getResponseBody,
     removeEntry,
     clearAll,
     recordEvent,

@@ -1,5 +1,5 @@
 {
-    "name": "http-tracker",
+    "name": "clean-http-tracker",
     "description": "",
     "version": "3.2.0",
     "repository": {
@@ -23,6 +23,6 @@
         "build": "npm run lint",
         "set-version": "node scripts/set-version.mjs",
         "package": "node scripts/package.mjs",
-        "package:verify": "unzip -l archives/http-tracker-chrome-$(node -e \"process.stdout.write(require('./manifest.json').version)\").zip && unzip -l archives/http-tracker-firefox-$(node -e \"process.stdout.write(require('./manifest.json').version)\").zip"
+        "package:verify": "unzip -l archives/clean-http-tracker-chrome-$(node -e \"process.stdout.write(require('./manifest.json').version)\").zip && unzip -l archives/clean-http-tracker-firefox-$(node -e \"process.stdout.write(require('./manifest.json').version)\").zip"
     }
 }

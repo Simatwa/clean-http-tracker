@@ -58,7 +58,47 @@ const eventTracker = (function() {
       !matchesExcludePattern(targetUrl, excludeURLsList, globalExcludeURLsList);
   }
 
+  function isInternalCache(webEvent) {
+    if (webEvent?.fromCache && String(webEvent.fromCache).toLowerCase() === 'internal') {
+      return true;
+    }
+    const cachedResponse = httpTrackerEventCache.getResponse(webEvent?.requestIdEnhanced);
+    if (cachedResponse?.fromCache && String(cachedResponse.fromCache).toLowerCase() === 'internal') {
+      return true;
+    }
+    return false;
+  }
+
   function addOrUpdateUrlListToPage(webEvent) {
+    if (isInternalCache(webEvent)) {
+      const existingRow = getById(`web_events_list_${webEvent.requestIdEnhanced}`);
+      if (existingRow) {
+        existingRow.remove();
+      }
+      if (selectedWebEventRequestId === webEvent.requestIdEnhanced) {
+        httpTrackerDetailsView.clearDetailsView();
+        selectedWebEventRequestId = '';
+      }
+      if (webEvent.callerName === 'onBeforeRedirect' && webEvent.redirectUrl) {
+        const redirectCount = httpTrackerEventCache.getRedirectCount(webEvent.requestId);
+        const nextEnhancedId = `${webEvent.requestId}_${redirectCount}`;
+        if (!httpTrackerEventCache.hasEvent(nextEnhancedId)) {
+          addEventRow({
+            requestId: webEvent.requestId,
+            requestIdEnhanced: nextEnhancedId,
+            url: webEvent.redirectUrl,
+            method: webEvent.method || 'GET',
+            timeStamp: webEvent.timeStamp,
+            type: webEvent.type,
+          });
+        }
+      }
+      if (activeColumnFilters) {
+        updateDeleteFilteredButton();
+      }
+      return;
+    }
+
     if (!httpTrackerEventCache.hasEvent(webEvent.requestIdEnhanced)) {
       addEventRow(webEvent);
     } else {
@@ -85,6 +125,9 @@ const eventTracker = (function() {
   }
 
   function addEventRow(webEvent) {
+    if (isInternalCache(webEvent)) {
+      return;
+    }
     httpTrackerEventCache.markEventAdded(webEvent.requestIdEnhanced);
     const tmpl = getById('template_url_row');
     if (tmpl?.content) {
@@ -147,6 +190,18 @@ const eventTracker = (function() {
   }
 
   function updateEventRow(webEvent) {
+    if (isInternalCache(webEvent)) {
+      const listEl = getById(`web_events_list_${webEvent.requestIdEnhanced}`);
+      if (listEl) {
+        listEl.remove();
+      }
+      if (selectedWebEventRequestId === webEvent.requestIdEnhanced) {
+        httpTrackerDetailsView.clearDetailsView();
+        selectedWebEventRequestId = '';
+      }
+      return;
+    }
+
     const listEl = getById(`web_events_list_${webEvent.requestIdEnhanced}`);
     const statusEl = getById(`web_event_status_${webEvent.requestIdEnhanced}`);
     const cacheEl = getById(`web_event_cache_${webEvent.requestIdEnhanced}`);
@@ -209,6 +264,7 @@ const eventTracker = (function() {
     const webEventIdRequest = httpTrackerEventCache.getRequest(selectedWebEventRequestId);
     const webEventIdResponse = httpTrackerEventCache.getResponse(selectedWebEventRequestId);
     const webEventIdRequestForm = httpTrackerEventCache.getRequestBody(selectedWebEventRequestId);
+    const webEventIdResponseBody = httpTrackerEventCache.getResponseBody?.(selectedWebEventRequestId);
     const allMaskPatterns = (maskedAttributesList || []).concat(globalMaskPatternsList || []);
 
     const copyCurlBtn = getById('copy_curl_button');
@@ -220,6 +276,7 @@ const eventTracker = (function() {
       requestEvent: webEventIdRequest,
       responseEvent: webEventIdResponse,
       requestBody: webEventIdRequestForm,
+      responseBody: webEventIdResponseBody,
       maskPatterns: allMaskPatterns,
       isMaskEnabled: isMaskingEnabled,
       optimizeResponseCookies,
@@ -778,7 +835,7 @@ const eventTracker = (function() {
   let trackerSessionPort = null;
   function connectSessionPort() {
     try {
-      trackerSessionPort = httpTracker.browser.runtime.connect({ name: 'http-tracker-session' });
+      trackerSessionPort = httpTracker.browser.runtime.connect({ name: 'clean-http-tracker-session' });
       trackerSessionPort.onDisconnect.addListener(() => {
         trackerSessionPort = null;
       });
@@ -793,5 +850,6 @@ const eventTracker = (function() {
   return {
     processWebEvent,
     logRequestDetails: processWebEvent,
+    markSelectedRequest,
   };
 })();

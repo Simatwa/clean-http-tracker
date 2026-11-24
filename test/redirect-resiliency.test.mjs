@@ -386,11 +386,9 @@ describe('Redirect Pipeline Resiliency & Error Handling Tests (Alternative 2)', 
     });
 
     // VERIFICATION:
-    // Hop 0 row (http://github.com/) must display 307 and Cache: Internal (NOT N/A or false)
+    // Hop 0 row (http://github.com/) had Cache: Internal, so it must be removed from the requests side
     const row0 = proc.document.getElementById('web_events_list_ff-hsts-501');
-    assert.ok(row0, 'Hop 0 row (http://github.com/) must exist in DOM');
-    assert.equal(proc.document.getElementById('web_event_status_ff-hsts-501')?.textContent, '307');
-    assert.equal(proc.document.getElementById('web_event_cache_ff-hsts-501')?.textContent, 'Internal');
+    assert.equal(row0, null, 'Internal cache request must NOT appear in requests list DOM');
 
     // Cached response must have normalized 307 status
     const cachedResponse = proc.httpTrackerEventCache.getResponse('ff-hsts-501');

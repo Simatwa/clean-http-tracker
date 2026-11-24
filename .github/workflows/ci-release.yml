@@ -57,8 +57,8 @@ jobs:
         run: |
           VERSION=$(node -e "process.stdout.write(require('./manifest.json').version)")
           gh release create "${{ github.ref_name }}" \
-            "archives/http-tracker-chrome-${VERSION}.zip" \
-            "archives/http-tracker-firefox-${VERSION}.zip" \
-            "archives/http-tracker-${VERSION}.zip" \
+            "archives/clean-http-tracker-chrome-${VERSION}.zip" \
+            "archives/clean-http-tracker-firefox-${VERSION}.zip" \
+            "archives/clean-http-tracker-${VERSION}.zip" \
             --title "v${VERSION}" \
             --generate-notes

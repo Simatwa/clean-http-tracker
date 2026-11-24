@@ -1,5 +1,5 @@
 1. DOM Hygiene & Security (100% replaceChildren, Zero innerHTML):
-- All dynamic data rendered across HTTP-TRACKER (details view, request stream, and release notes) is constructed using native DOM nodes and updated via replaceChildren().
+- All dynamic data rendered across Clean Http Tracker (details view, request stream, and release notes) is constructed using native DOM nodes and updated via replaceChildren().
 - Strictly zero innerHTML assignments exist in the codebase.
 - No unsanitized user or network data is ever parsed as HTML markup.
 

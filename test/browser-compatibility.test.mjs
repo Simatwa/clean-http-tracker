@@ -14,7 +14,7 @@ describe('Cross-Browser Compatibility & Packaging Tests (Chrome & Firefox)', () 
       assert.deepEqual(calls.onErrorOccurred[1], { urls: ['<all_urls>'] });
       assert.deepEqual(calls.onBeforeRequest[2], ['requestBody']);
       assert.deepEqual(calls.onBeforeSendHeaders[2], ['requestHeaders']);
-      assert.deepEqual(calls.onHeadersReceived[2], ['responseHeaders']);
+      assert.deepEqual(calls.onHeadersReceived[2], ['responseHeaders', 'blocking']);
     });
 
     it('executes actual dom-events.js in Chrome mode: 3 arguments including extraHeaders for all listeners', () => {
@@ -74,8 +74,8 @@ describe('Cross-Browser Compatibility & Packaging Tests (Chrome & Firefox)', () 
   describe('Store Distribution Packages Schema Verification', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
     const version = pkg.version;
-    const chromeZip = join('archives', `http-tracker-chrome-${version}.zip`);
-    const firefoxZip = join('archives', `http-tracker-firefox-${version}.zip`);
+    const chromeZip = join('archives', `clean-http-tracker-chrome-${version}.zip`);
+    const firefoxZip = join('archives', `clean-http-tracker-firefox-${version}.zip`);
 
     before(() => {
       if (!existsSync(chromeZip) || !existsSync(firefoxZip)) {
