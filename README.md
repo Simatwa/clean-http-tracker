@@ -1,3 +1,6 @@
+> [!NOTE]
+> This is a fork of [venukbh/http-tracker](https://github.com/venukbh/http-tracker) added features that the **maintainer refuses to give a damn on** and also cleared some AI mess.
+
 <div align="center">
   <p>
     <img src="src/assets/icon_128px.png" width="48" height="48" alt="Clean Http Tracker Icon" style="vertical-align: middle;">
