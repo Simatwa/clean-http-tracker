@@ -833,3 +833,419 @@ function generateCurlCommand(requestEvent, requestBody) {
 
   return parts.join(' \\\n  ');
 }
+
+/**
+ * Extracts normalized lowercase MIME content-type without parameters or charset from headers.
+ */
+function getContentType(headers) {
+  if (!headers) return '';
+  if (Array.isArray(headers)) {
+    const found = headers.find((h) => h && h.name && String(h.name).toLowerCase() === 'content-type');
+    if (found && found.value) {
+      return String(found.value).split(';')[0].trim().toLowerCase();
+    }
+  } else if (typeof headers === 'object') {
+    for (const [k, v] of Object.entries(headers)) {
+      if (k.toLowerCase() === 'content-type') {
+        return String(v).split(';')[0].trim().toLowerCase();
+      }
+    }
+  }
+  return '';
+}
+
+/**
+ * Identifies if a MIME content-type is strictly binary (non-text).
+ */
+function isBinaryContentType(contentType) {
+  if (!contentType || typeof contentType !== 'string') return false;
+  const ct = contentType.toLowerCase().trim();
+  if (ct.startsWith('image/')) {
+    return ct !== 'image/svg+xml';
+  }
+  if (ct.startsWith('audio/') || ct.startsWith('video/')) {
+    return true;
+  }
+  if (
+    ct === 'application/octet-stream' ||
+    ct === 'application/pdf' ||
+    ct === 'application/zip' ||
+    ct === 'application/gzip' ||
+    ct === 'application/x-gzip' ||
+    ct === 'application/x-tar' ||
+    ct === 'application/x-bzip' ||
+    ct === 'application/x-bzip2' ||
+    ct === 'application/x-7z-compressed' ||
+    ct === 'application/x-rar-compressed' ||
+    ct === 'application/wasm' ||
+    ct === 'font/woff' ||
+    ct === 'font/woff2' ||
+    ct === 'font/ttf' ||
+    ct === 'font/otf' ||
+    ct === 'application/vnd.ms-fontobject'
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Determines whether a given content-type or payload string can be formatted/prettified.
+ */
+function isPrettifiableContentType(contentType, sampleText) {
+  const ct = (contentType || '').toLowerCase().trim();
+  if (isBinaryContentType(ct)) {
+    return false;
+  }
+  if (sampleText && typeof sampleText === 'string') {
+    if (isBinaryData(sampleText)) {
+      return false;
+    }
+  }
+  if (
+    ct.includes('json') ||
+    ct.includes('html') ||
+    ct.includes('xml') ||
+    ct === 'text/css' ||
+    ct === 'text/javascript' ||
+    ct === 'application/javascript' ||
+    ct === 'application/x-javascript' ||
+    ct === 'application/x-www-form-urlencoded'
+  ) {
+    return true;
+  }
+  if (sampleText && typeof sampleText === 'string') {
+    const trimmed = sampleText.trim();
+    if (!trimmed) return false;
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        JSON.parse(trimmed);
+        return true;
+      } catch {}
+    }
+    if (trimmed.startsWith('<') && (trimmed.endsWith('>') || trimmed.includes('</'))) {
+      return true;
+    }
+    if (/[a-zA-Z0-9_.-]+\s*\{[^}]+\}/.test(trimmed)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Formats JSON string with indentation (default 2 spaces).
+ */
+function prettifyJson(jsonStr, indent = 2) {
+  if (typeof jsonStr !== 'string') {
+    if (typeof jsonStr === 'object' && jsonStr !== null) {
+      try {
+        return JSON.stringify(jsonStr, null, indent);
+      } catch {}
+    }
+    return String(jsonStr ?? '');
+  }
+  const trimmed = jsonStr.trim();
+  if (!trimmed) return jsonStr;
+  try {
+    const parsed = JSON.parse(trimmed);
+    return JSON.stringify(parsed, null, indent);
+  } catch {
+    return jsonStr;
+  }
+}
+
+/**
+ * Prettifies HTML or XML string with tag-based nesting and indentation (default 2 spaces).
+ */
+function prettifyHtml(htmlStr, indent = 2) {
+  if (typeof htmlStr !== 'string') return '';
+  const trimmed = htmlStr.trim();
+  if (!trimmed) return htmlStr;
+
+  const voidTags = new Set([
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+    'link', 'meta', 'param', 'source', 'track', 'wbr', '!doctype',
+  ]);
+
+  const spaces = ' '.repeat(indent);
+  const tokens = [];
+  const tagRegex = /(<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|<\/?[a-zA-Z0-9:_-]+(?:\s+[^"'>]*(?:(?:"[^"]*")|(?:'[^']*'))?)*\s*\/?>|[^<]+)/gi;
+  let match;
+  while ((match = tagRegex.exec(trimmed)) !== null) {
+    const token = match[0].trim();
+    if (token) {
+      tokens.push(token);
+    }
+  }
+
+  let indentLevel = 0;
+  const lines = [];
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.startsWith('<!--') || /^<!DOCTYPE/i.test(token)) {
+      lines.push(spaces.repeat(indentLevel) + token);
+    } else if (token.startsWith('</')) {
+      indentLevel = Math.max(0, indentLevel - 1);
+      lines.push(spaces.repeat(indentLevel) + token);
+    } else if (token.startsWith('<')) {
+      const tagMatch = token.match(/^<([a-zA-Z0-9:_-]+)/);
+      const tagName = tagMatch ? tagMatch[1].toLowerCase() : '';
+      const isSelfClosing = token.endsWith('/>') || voidTags.has(tagName);
+
+      if (!isSelfClosing && i + 2 < tokens.length && !tokens[i + 1].startsWith('<') && tokens[i + 2].toLowerCase() === `</${tagName}>`) {
+        lines.push(spaces.repeat(indentLevel) + token + tokens[i + 1] + tokens[i + 2]);
+        i += 2;
+        continue;
+      }
+
+      lines.push(spaces.repeat(indentLevel) + token);
+      if (!isSelfClosing) {
+        indentLevel++;
+      }
+    } else {
+      lines.push(spaces.repeat(indentLevel) + token);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Prettifies CSS string with rule and declaration indentation (default 2 spaces).
+ */
+function prettifyCss(cssStr, indent = 2) {
+  if (typeof cssStr !== 'string') return '';
+  const trimmed = cssStr.trim();
+  if (!trimmed) return cssStr;
+
+  const spaces = ' '.repeat(indent);
+  let output = '';
+  let indentLevel = 0;
+  let inString = false;
+  let quoteChar = '';
+  let inComment = false;
+
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    const nextChar = trimmed[i + 1];
+
+    if (inComment) {
+      output += char;
+      if (char === '*' && nextChar === '/') {
+        output += '/';
+        i++;
+        inComment = false;
+      }
+      continue;
+    }
+
+    if (inString) {
+      output += char;
+      if (char === quoteChar && trimmed[i - 1] !== '\\') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      inString = true;
+      quoteChar = char;
+      output += char;
+      continue;
+    }
+
+    if (char === '/' && nextChar === '*') {
+      inComment = true;
+      output += '/*';
+      i++;
+      continue;
+    }
+
+    if (char === '{') {
+      output = output.trimEnd() + ' {\n';
+      indentLevel++;
+      output += spaces.repeat(indentLevel);
+    } else if (char === '}') {
+      indentLevel = Math.max(0, indentLevel - 1);
+      output = output.trimEnd() + '\n' + spaces.repeat(indentLevel) + '}\n';
+      if (indentLevel > 0) {
+        output += spaces.repeat(indentLevel);
+      }
+    } else if (char === ';') {
+      output += ';\n' + spaces.repeat(indentLevel);
+    } else if (char === '\n' || char === '\r') {
+      if (!output.endsWith('\n') && !output.endsWith(spaces.repeat(indentLevel))) {
+        output += ' ';
+      }
+    } else if (char === ' ' || char === '\t') {
+      if (!output.endsWith(' ') && !output.endsWith('\n') && !output.endsWith(spaces.repeat(indentLevel))) {
+        output += ' ';
+      }
+    } else {
+      output += char;
+    }
+  }
+
+  return output.trim();
+}
+
+/**
+ * Formats XML string with indentation (alias for prettifyHtml with XML support).
+ */
+function prettifyXml(xmlStr, indent = 2) {
+  return prettifyHtml(xmlStr, indent);
+}
+
+/**
+ * Formats URL-encoded form data (e.g. foo=bar&baz=qux) into indented lines.
+ */
+function prettifyUrlEncoded(formDataStr, indent = 2) {
+  if (typeof formDataStr !== 'string') return '';
+  const trimmed = formDataStr.trim();
+  if (!trimmed) return formDataStr;
+  const spaces = ' '.repeat(indent);
+  const pairs = trimmed.split('&');
+  const lines = pairs.map((pair) => {
+    const eqIdx = pair.indexOf('=');
+    if (eqIdx === -1) {
+      try {
+        return decodeURIComponent(pair);
+      } catch {
+        return pair;
+      }
+    }
+    const k = pair.slice(0, eqIdx);
+    const v = pair.slice(eqIdx + 1);
+    let decodedK = k;
+    let decodedV = v;
+    try {
+      decodedK = decodeURIComponent(k.replace(/\+/g, ' '));
+    } catch {}
+    try {
+      decodedV = decodeURIComponent(v.replace(/\+/g, ' '));
+    } catch {}
+    return `${decodedK} = ${decodedV}`;
+  });
+  return lines.map((l) => spaces + l).join('\n');
+}
+
+/**
+ * Dispatches formatting for text based on MIME content-type or structure sniffing.
+ */
+function prettifyContent(text, contentType, indent = 2) {
+  if (text === null || text === undefined) return '';
+  const str = String(text);
+  const ct = (contentType || '').toLowerCase().trim();
+
+  if (isBinaryContentType(ct) || isBinaryData(str)) {
+    return str;
+  }
+
+  // 1. JSON
+  if (ct.includes('json') || (!ct && (str.trim().startsWith('{') || str.trim().startsWith('[')))) {
+    const formatted = prettifyJson(str, indent);
+    if (formatted !== str) return formatted;
+  }
+
+  // 2. HTML
+  if (ct.includes('html') || (!ct && (str.trim().startsWith('<!DOCTYPE') || str.trim().startsWith('<html')))) {
+    return prettifyHtml(str, indent);
+  }
+
+  // 3. CSS
+  if (ct === 'text/css') {
+    return prettifyCss(str, indent);
+  }
+
+  // 4. XML / SVG
+  if (ct.includes('xml') || ct === 'image/svg+xml') {
+    return prettifyXml(str, indent);
+  }
+
+  // 5. URL-encoded
+  if (ct === 'application/x-www-form-urlencoded' || (!ct && str.includes('=') && str.includes('&') && !str.includes('<'))) {
+    return prettifyUrlEncoded(str, indent);
+  }
+
+  // 6. Sniffing fallback for unknown or text/plain
+  const trimmed = str.trim();
+  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      return JSON.stringify(parsed, null, indent);
+    } catch {}
+  }
+
+  if (trimmed.startsWith('<') && (trimmed.endsWith('>') || trimmed.includes('</'))) {
+    return prettifyHtml(str, indent);
+  }
+
+  if (/[a-zA-Z0-9_.-]+\s*\{[^}]+\}/.test(trimmed)) {
+    return prettifyCss(str, indent);
+  }
+
+  return str;
+}
+
+/**
+ * Inspects a body object or string to determine availability, binary status, and prettifiability.
+ */
+function inspectBodyForPrettify(body, contentType) {
+  if (!body) {
+    return { hasBody: false, isBinary: false, canPrettify: false, contentType: '' };
+  }
+  if (body.error) {
+    return { hasBody: false, isBinary: false, canPrettify: false, contentType: '' };
+  }
+  if (isBinaryContentType(contentType)) {
+    return { hasBody: true, isBinary: true, canPrettify: false, contentType };
+  }
+  if (body.raw) {
+    for (const eachByte of body.raw) {
+      if (eachByte.bytes) {
+        const dv = new DataView(eachByte.bytes);
+        const decoder = new TextDecoder('UTF-8');
+        const decoded = decoder.decode(dv);
+        if (isBinaryData(decoded)) {
+          return { hasBody: true, isBinary: true, canPrettify: false, contentType };
+        }
+        return {
+          hasBody: true,
+          isBinary: false,
+          canPrettify: isPrettifiableContentType(contentType, decoded),
+          contentType,
+        };
+      }
+    }
+    return { hasBody: false, isBinary: false, canPrettify: false, contentType };
+  }
+  if (typeof body === 'string') {
+    const isBin = isBinaryData(body);
+    return {
+      hasBody: body.length > 0,
+      isBinary: isBin,
+      canPrettify: !isBin && isPrettifiableContentType(contentType, body),
+      contentType,
+    };
+  }
+  if (typeof body.body === 'string') {
+    const isBin = isBinaryData(body.body);
+    return {
+      hasBody: body.body.length > 0,
+      isBinary: isBin,
+      canPrettify: !isBin && isPrettifiableContentType(contentType, body.body),
+      contentType,
+    };
+  }
+  if (typeof body === 'object') {
+    return {
+      hasBody: Object.keys(body).length > 0,
+      isBinary: false,
+      canPrettify: true,
+      contentType: contentType || 'application/json',
+    };
+  }
+  return { hasBody: false, isBinary: false, canPrettify: false, contentType };
+}

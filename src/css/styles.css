@@ -646,6 +646,78 @@ label {
   padding: 2px 6px;
 }
 
+.web_event_heading_buttons {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.web_event_heading_buttons .web_event_button_copy_curl {
+  position: static;
+}
+
+.web_event_button_prettify {
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 1px 8px;
+  height: 20px;
+  line-height: 16px;
+  border: 1px solid #047857;
+  border-radius: 4px;
+  background-color: #059669;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.web_event_button_prettify:hover:not(:disabled) {
+  background-color: #047857;
+  border-color: #065f46;
+  color: #ffffff;
+}
+
+.web_event_button_prettify:active:not(:disabled) {
+  background-color: #065f46;
+}
+
+.web_event_button_prettify:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background-color: #9ca3af;
+  border-color: #6b7280;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.web_event_button_prettify.web_event_button_active {
+  background-color: #d97706;
+  border-color: #b45309;
+  color: #ffffff;
+}
+
+.web_event_button_prettify.web_event_button_active:hover:not(:disabled) {
+  background-color: #b45309;
+  border-color: #92400e;
+}
+
+.web_event_body_toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+  padding: 2px 4px;
+  border-bottom: 1px dashed #d1d5db;
+  gap: 6px;
+}
+
 .web_event_button_copy_curl {
   position: absolute;
   right: 6px;

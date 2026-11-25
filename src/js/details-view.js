@@ -1,5 +1,7 @@
 const httpTrackerDetailsView = (function() {
   const decoder = new TextDecoder('UTF-8');
+  let isRequestPrettified = false;
+  let isResponsePrettified = false;
   const ignoreHeaders = new Set(['frameAncestors', 'frameId', 'parentFrameId', 'tabId', 'timeStamp', 'type', 'callerName', 'requestIdEnhanced', 'requestId', 'requestBody']);
 
   function appendMarkedText(parent, text, compiledFindPattern) {
@@ -109,6 +111,109 @@ const httpTrackerDetailsView = (function() {
     return tr;
   }
 
+  function setAttr(el, name, val) {
+    if (el && typeof el.setAttribute === 'function') {
+      el.setAttribute(name, val);
+    }
+  }
+
+  function createBodyPrettifyToolbar(target, isPrettified, isBinary, canPrettify) {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'web_event_body_toolbar';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'web_event_button_prettify';
+    setAttr(btn, 'data-target', target);
+    if (isBinary) {
+      btn.disabled = true;
+      btn.textContent = 'Prettify';
+      btn.title = 'Prettify unavailable for binary data';
+      setAttr(btn, 'aria-pressed', 'false');
+    } else {
+      btn.disabled = !canPrettify;
+      btn.textContent = isPrettified ? 'Raw' : 'Prettify';
+      btn.title = isPrettified ? 'Show raw unformatted display' : 'Prettify display (indent JSON, prettify HTML/CSS)';
+      if (isPrettified) {
+        btn.classList.add('web_event_button_active');
+        setAttr(btn, 'aria-pressed', 'true');
+      } else {
+        btn.classList.remove('web_event_button_active');
+        setAttr(btn, 'aria-pressed', 'false');
+      }
+    }
+    toolbar.appendChild(btn);
+    return toolbar;
+  }
+
+  function updatePrettifyHeaderButtons({
+    requestBody,
+    responseBody,
+    requestContentType,
+    responseContentType,
+  }) {
+    const reqInspect = typeof inspectBodyForPrettify === 'function' ?
+      inspectBodyForPrettify(requestBody, requestContentType) :
+      { hasBody: Boolean(requestBody), isBinary: false, canPrettify: true };
+    const prettifyReqBtn = getById('prettify_request_button');
+    if (prettifyReqBtn) {
+      if (!reqInspect.hasBody) {
+        prettifyReqBtn.disabled = true;
+        prettifyReqBtn.textContent = 'Prettify';
+        prettifyReqBtn.title = 'No request body to prettify';
+        prettifyReqBtn.classList.remove('web_event_button_active');
+        setAttr(prettifyReqBtn, 'aria-pressed', 'false');
+      } else if (reqInspect.isBinary) {
+        prettifyReqBtn.disabled = true;
+        prettifyReqBtn.textContent = 'Prettify';
+        prettifyReqBtn.title = 'Prettify unavailable for binary data';
+        prettifyReqBtn.classList.remove('web_event_button_active');
+        setAttr(prettifyReqBtn, 'aria-pressed', 'false');
+      } else {
+        prettifyReqBtn.disabled = false;
+        prettifyReqBtn.textContent = isRequestPrettified ? 'Raw' : 'Prettify';
+        prettifyReqBtn.title = isRequestPrettified ? 'Show raw unformatted display' : 'Prettify display (indent JSON, prettify HTML/CSS)';
+        if (isRequestPrettified) {
+          prettifyReqBtn.classList.add('web_event_button_active');
+          setAttr(prettifyReqBtn, 'aria-pressed', 'true');
+        } else {
+          prettifyReqBtn.classList.remove('web_event_button_active');
+          setAttr(prettifyReqBtn, 'aria-pressed', 'false');
+        }
+      }
+    }
+
+    const resInspect = typeof inspectBodyForPrettify === 'function' ?
+      inspectBodyForPrettify(responseBody, responseContentType) :
+      { hasBody: Boolean(responseBody), isBinary: false, canPrettify: true };
+    const prettifyResBtn = getById('prettify_response_button');
+    if (prettifyResBtn) {
+      if (!resInspect.hasBody) {
+        prettifyResBtn.disabled = true;
+        prettifyResBtn.textContent = 'Prettify';
+        prettifyResBtn.title = 'No response body to prettify';
+        prettifyResBtn.classList.remove('web_event_button_active');
+        setAttr(prettifyResBtn, 'aria-pressed', 'false');
+      } else if (resInspect.isBinary) {
+        prettifyResBtn.disabled = true;
+        prettifyResBtn.textContent = 'Prettify';
+        prettifyResBtn.title = 'Prettify unavailable for binary data';
+        prettifyResBtn.classList.remove('web_event_button_active');
+        setAttr(prettifyResBtn, 'aria-pressed', 'false');
+      } else {
+        prettifyResBtn.disabled = false;
+        prettifyResBtn.textContent = isResponsePrettified ? 'Raw' : 'Prettify';
+        prettifyResBtn.title = isResponsePrettified ? 'Show raw unformatted display' : 'Prettify display (indent JSON, prettify HTML/CSS)';
+        if (isResponsePrettified) {
+          prettifyResBtn.classList.add('web_event_button_active');
+          setAttr(prettifyResBtn, 'aria-pressed', 'true');
+        } else {
+          prettifyResBtn.classList.remove('web_event_button_active');
+          setAttr(prettifyResBtn, 'aria-pressed', 'false');
+        }
+      }
+    }
+  }
+
   function renderSelectedEventDetails({
     requestEvent,
     responseEvent,
@@ -118,11 +223,30 @@ const httpTrackerDetailsView = (function() {
     isMaskEnabled,
     optimizeResponseCookies,
     compiledFindPattern,
+    isRequestPrettified: customReqPrettified,
+    isResponsePrettified: customResPrettified,
   }) {
+    if (customReqPrettified !== undefined) {
+      isRequestPrettified = Boolean(customReqPrettified);
+    }
+    if (customResPrettified !== undefined) {
+      isResponsePrettified = Boolean(customResPrettified);
+    }
+
+    const requestContentType = typeof getContentType === 'function' ? getContentType(requestEvent?.requestHeaders) : '';
+    const responseContentType = typeof getContentType === 'function' ? getContentType(responseEvent?.responseHeaders) : '';
+
+    updatePrettifyHeaderButtons({
+      requestBody,
+      responseBody,
+      requestContentType,
+      responseContentType,
+    });
+
     const requestRows = buildURLDetailsRows(requestEvent, 'requestDetails', maskPatterns, isMaskEnabled, compiledFindPattern, false, responseEvent);
     const responseRows = buildURLDetailsRows(responseEvent, 'responseDetails', maskPatterns, isMaskEnabled, compiledFindPattern, optimizeResponseCookies, requestEvent);
-    const requestFormRows = buildRequestFormRows(requestBody, maskPatterns, isMaskEnabled, compiledFindPattern);
-    const responseBodyRows = buildResponseBodyRows(responseBody, maskPatterns, isMaskEnabled, compiledFindPattern);
+    const requestFormRows = buildRequestFormRows(requestBody, maskPatterns, isMaskEnabled, compiledFindPattern, requestContentType, isRequestPrettified);
+    const responseBodyRows = buildResponseBodyRows(responseBody, maskPatterns, isMaskEnabled, compiledFindPattern, responseContentType, isResponsePrettified);
 
     const reqEl = getById('web_event_details_selected_request');
     const resEl = getById('web_event_details_selected_response');
@@ -188,6 +312,22 @@ const httpTrackerDetailsView = (function() {
       }
       copyCurlBtn.textContent = 'Copy as cURL';
       copyCurlBtn.classList.remove('copy_success');
+    }
+
+    const prettifyReqBtn = getById('prettify_request_button');
+    if (prettifyReqBtn) {
+      prettifyReqBtn.disabled = true;
+      prettifyReqBtn.textContent = 'Prettify';
+      prettifyReqBtn.classList.remove('web_event_button_active');
+      setAttr(prettifyReqBtn, 'aria-pressed', 'false');
+    }
+
+    const prettifyResBtn = getById('prettify_response_button');
+    if (prettifyResBtn) {
+      prettifyResBtn.disabled = true;
+      prettifyResBtn.textContent = 'Prettify';
+      prettifyResBtn.classList.remove('web_event_button_active');
+      setAttr(prettifyResBtn, 'aria-pressed', 'false');
     }
 
     const reqBodyEl = getById('request_headers_details_body') || getById('request_headers_details');
@@ -264,7 +404,7 @@ const httpTrackerDetailsView = (function() {
     return rows;
   }
 
-  function buildRequestFormRows(webEventIdRequestForm, maskPatterns, isMaskEnabled, compiledFindPattern) {
+  function buildRequestFormRows(webEventIdRequestForm, maskPatterns, isMaskEnabled, compiledFindPattern, contentType = '', isPrettified = isRequestPrettified) {
     const rows = [];
     if (webEventIdRequestForm) {
       if (webEventIdRequestForm.formData) {
@@ -287,24 +427,55 @@ const httpTrackerDetailsView = (function() {
           }
           const dataView = new DataView(eachByte.bytes);
           const decodedString = decoder.decode(dataView);
-          if (isBinaryData(decodedString)) {
+          const isBinary = isBinaryData(decodedString) || (typeof isBinaryContentType === 'function' && isBinaryContentType(contentType));
+          if (isBinary) {
             const type = detectCompressionType(dataView);
             const binarySpan = document.createElement('span');
             binarySpan.style.color = '#888';
             binarySpan.style.fontStyle = 'italic';
             binarySpan.textContent = `[Binary data \u2014 ${dataView.byteLength} bytes, likely ${type}. Cannot display compressed content.]`;
-            rows.push(renderMessageRow(binarySpan));
+            const toolbar = createBodyPrettifyToolbar('request', false, true, false);
+            const tr = document.createElement('tr');
+            tr.style.whiteSpace = 'pre-wrap';
+            tr.style.wordBreak = 'break-all';
+            const td = document.createElement('td');
+            td.colSpan = 2;
+            td.appendChild(toolbar);
+            td.appendChild(binarySpan);
+            tr.appendChild(td);
+            rows.push(tr);
           } else {
             const tr = document.createElement('tr');
             tr.style.whiteSpace = 'pre-wrap';
             tr.style.wordBreak = 'break-all';
             const td = document.createElement('td');
             td.colSpan = 2;
-            appendMarkedText(td, decodedString, compiledFindPattern);
+            const toolbar = createBodyPrettifyToolbar('request', isPrettified, false, true);
+            td.appendChild(toolbar);
+            const displayText = isPrettified && typeof prettifyContent === 'function' ?
+              prettifyContent(decodedString, contentType) :
+              decodedString;
+            appendMarkedText(td, displayText, compiledFindPattern);
             tr.appendChild(td);
             rows.push(tr);
           }
         }
+      } else if (typeof webEventIdRequestForm.body === 'string') {
+        rows.push(renderBannerRow('Body (raw form data)'));
+        const isBinary = isBinaryData(webEventIdRequestForm.body) || (typeof isBinaryContentType === 'function' && isBinaryContentType(contentType));
+        const tr = document.createElement('tr');
+        tr.style.whiteSpace = 'pre-wrap';
+        tr.style.wordBreak = 'break-all';
+        const td = document.createElement('td');
+        td.colSpan = 2;
+        const toolbar = createBodyPrettifyToolbar('request', isPrettified, isBinary, !isBinary);
+        td.appendChild(toolbar);
+        const displayText = isPrettified && typeof prettifyContent === 'function' ?
+          prettifyContent(webEventIdRequestForm.body, contentType) :
+          webEventIdRequestForm.body;
+        appendMarkedText(td, displayText, compiledFindPattern);
+        tr.appendChild(td);
+        rows.push(tr);
       } else if (webEventIdRequestForm.error) {
         rows.push(renderBannerRow('Body'));
         const errorSpan = document.createElement('span');
@@ -316,7 +487,7 @@ const httpTrackerDetailsView = (function() {
     return rows;
   }
 
-  function buildResponseBodyRows(webEventIdResponseBody, maskPatterns, isMaskEnabled, compiledFindPattern) {
+  function buildResponseBodyRows(webEventIdResponseBody, maskPatterns, isMaskEnabled, compiledFindPattern, contentType = '', isPrettified = isResponsePrettified) {
     const rows = [];
     if (webEventIdResponseBody) {
       if (webEventIdResponseBody.formData) {
@@ -332,50 +503,90 @@ const httpTrackerDetailsView = (function() {
           }
           const dataView = new DataView(eachByte.bytes);
           const decodedString = decoder.decode(dataView);
-          if (isBinaryData(decodedString)) {
+          const isBinary = isBinaryData(decodedString) || (typeof isBinaryContentType === 'function' && isBinaryContentType(contentType));
+          if (isBinary) {
             const type = detectCompressionType(dataView);
             const binarySpan = document.createElement('span');
             binarySpan.style.color = '#888';
             binarySpan.style.fontStyle = 'italic';
             binarySpan.textContent = `[Binary data \u2014 ${dataView.byteLength} bytes, likely ${type}. Cannot display compressed content.]`;
-            rows.push(renderMessageRow(binarySpan));
+            const toolbar = createBodyPrettifyToolbar('response', false, true, false);
+            const tr = document.createElement('tr');
+            tr.style.whiteSpace = 'pre-wrap';
+            tr.style.wordBreak = 'break-all';
+            const td = document.createElement('td');
+            td.colSpan = 2;
+            td.appendChild(toolbar);
+            td.appendChild(binarySpan);
+            tr.appendChild(td);
+            rows.push(tr);
           } else {
             const tr = document.createElement('tr');
             tr.style.whiteSpace = 'pre-wrap';
             tr.style.wordBreak = 'break-all';
             const td = document.createElement('td');
             td.colSpan = 2;
-            appendMarkedText(td, decodedString, compiledFindPattern);
+            const toolbar = createBodyPrettifyToolbar('response', isPrettified, false, true);
+            td.appendChild(toolbar);
+            const displayText = isPrettified && typeof prettifyContent === 'function' ?
+              prettifyContent(decodedString, contentType) :
+              decodedString;
+            appendMarkedText(td, displayText, compiledFindPattern);
             tr.appendChild(td);
             rows.push(tr);
           }
         }
       } else if (typeof webEventIdResponseBody === 'string') {
         rows.push(renderBannerRow('Body (response data)'));
+        const isBinary = isBinaryData(webEventIdResponseBody) || (typeof isBinaryContentType === 'function' && isBinaryContentType(contentType));
         const tr = document.createElement('tr');
         tr.style.whiteSpace = 'pre-wrap';
         tr.style.wordBreak = 'break-all';
         const td = document.createElement('td');
         td.colSpan = 2;
-        appendMarkedText(td, webEventIdResponseBody, compiledFindPattern);
+        const toolbar = createBodyPrettifyToolbar('response', isPrettified, isBinary, !isBinary);
+        td.appendChild(toolbar);
+        const displayText = isPrettified && typeof prettifyContent === 'function' ?
+          prettifyContent(webEventIdResponseBody, contentType) :
+          webEventIdResponseBody;
+        appendMarkedText(td, displayText, compiledFindPattern);
         tr.appendChild(td);
         rows.push(tr);
       } else if (typeof webEventIdResponseBody.body === 'string') {
         rows.push(renderBannerRow('Body (response data)'));
+        const isBinary = isBinaryData(webEventIdResponseBody.body) || (typeof isBinaryContentType === 'function' && isBinaryContentType(contentType));
         const tr = document.createElement('tr');
         tr.style.whiteSpace = 'pre-wrap';
         tr.style.wordBreak = 'break-all';
         const td = document.createElement('td');
         td.colSpan = 2;
-        appendMarkedText(td, webEventIdResponseBody.body, compiledFindPattern);
+        const toolbar = createBodyPrettifyToolbar('response', isPrettified, isBinary, !isBinary);
+        td.appendChild(toolbar);
+        const displayText = isPrettified && typeof prettifyContent === 'function' ?
+          prettifyContent(webEventIdResponseBody.body, contentType) :
+          webEventIdResponseBody.body;
+        appendMarkedText(td, displayText, compiledFindPattern);
         tr.appendChild(td);
         rows.push(tr);
       } else if (typeof webEventIdResponseBody === 'object' && !webEventIdResponseBody.error) {
         rows.push(renderBannerRow('Body (response data)'));
-        Object.entries(webEventIdResponseBody).forEach(([key, value]) => {
-          const valStr = typeof value === 'object' ? JSON.stringify(value) : value;
-          rows.push(renderKeyValueRow(key, valStr, maskPatterns, isMaskEnabled, compiledFindPattern));
-        });
+        if (isPrettified) {
+          const tr = document.createElement('tr');
+          tr.style.whiteSpace = 'pre-wrap';
+          tr.style.wordBreak = 'break-all';
+          const td = document.createElement('td');
+          td.colSpan = 2;
+          const toolbar = createBodyPrettifyToolbar('response', true, false, true);
+          td.appendChild(toolbar);
+          appendMarkedText(td, JSON.stringify(webEventIdResponseBody, null, 2), compiledFindPattern);
+          tr.appendChild(td);
+          rows.push(tr);
+        } else {
+          Object.entries(webEventIdResponseBody).forEach(([key, value]) => {
+            const valStr = typeof value === 'object' ? JSON.stringify(value) : value;
+            rows.push(renderKeyValueRow(key, valStr, maskPatterns, isMaskEnabled, compiledFindPattern));
+          });
+        }
       } else if (webEventIdResponseBody.error) {
         rows.push(renderBannerRow('Body (response data)'));
         const errorSpan = document.createElement('span');
@@ -499,11 +710,43 @@ const httpTrackerDetailsView = (function() {
     }).catch(onError);
   }
 
+  function togglePrettifyRequestBody() {
+    isRequestPrettified = !isRequestPrettified;
+    return isRequestPrettified;
+  }
+
+  function togglePrettifyResponseBody() {
+    isResponsePrettified = !isResponsePrettified;
+    return isResponsePrettified;
+  }
+
+  function isRequestBodyPrettified() {
+    return isRequestPrettified;
+  }
+
+  function isResponseBodyPrettified() {
+    return isResponsePrettified;
+  }
+
+  function setRequestBodyPrettified(val) {
+    isRequestPrettified = Boolean(val);
+  }
+
+  function setResponseBodyPrettified(val) {
+    isResponsePrettified = Boolean(val);
+  }
+
   return {
     renderSelectedEventDetails,
     clearDetailsView,
     deleteCookiesForSelectedDomain,
     buildResponseBodyRows,
     buildRequestFormRows,
+    togglePrettifyRequestBody,
+    togglePrettifyResponseBody,
+    isRequestBodyPrettified,
+    isResponseBodyPrettified,
+    setRequestBodyPrettified,
+    setResponseBodyPrettified,
   };
 })();

@@ -176,6 +176,32 @@ export function createTestContext(customGlobals = {}) {
           delete this[prop];
         },
       }),
+      attributes: {},
+      setAttribute: function(name, val) {
+        this.attributes[name] = String(val);
+        if (name.startsWith('data-')) {
+          const dataKey = name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+          this.dataset[dataKey] = String(val);
+        }
+      },
+      getAttribute: function(name) {
+        if (name in this.attributes) return this.attributes[name];
+        if (name.startsWith('data-')) {
+          const dataKey = name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+          return this.dataset[dataKey] ?? null;
+        }
+        return null;
+      },
+      hasAttribute: function(name) {
+        return name in this.attributes;
+      },
+      removeAttribute: function(name) {
+        delete this.attributes[name];
+        if (name.startsWith('data-')) {
+          const dataKey = name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+          delete this.dataset[dataKey];
+        }
+      },
       dataset: {},
       children: [],
       parentElement: null,
@@ -405,6 +431,16 @@ export function createTestContext(customGlobals = {}) {
       addMarkTag,
       extractCurlRequestBody,
       generateCurlCommand,
+      getContentType,
+      isBinaryContentType,
+      isPrettifiableContentType,
+      prettifyJson,
+      prettifyHtml,
+      prettifyCss,
+      prettifyXml,
+      prettifyUrlEncoded,
+      prettifyContent,
+      inspectBodyForPrettify,
       ALL_RESOURCE_TYPES,
       CHROME_RESOURCE_TYPES,
       FIREFOX_RESOURCE_TYPES,
@@ -499,6 +535,7 @@ export function createProcessorContext(customGlobals = {}) {
 
   return {
     ...res,
+    context,
     mockBrowser,
     domElements,
     document: globalThis.document,

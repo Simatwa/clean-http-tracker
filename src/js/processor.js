@@ -346,6 +346,29 @@ const eventTracker = (function() {
     if (copyCurlBtn) {
       copyCurlBtn.onclick = copySelectedEventAsCurl;
     }
+    const prettifyReqBtn = getById('prettify_request_button');
+    if (prettifyReqBtn) {
+      prettifyReqBtn.onclick = togglePrettifyRequest;
+    }
+    const prettifyResBtn = getById('prettify_response_button');
+    if (prettifyResBtn) {
+      prettifyResBtn.onclick = togglePrettifyResponse;
+    }
+    const detailsContainer = getById('web_details_selected_container');
+    if (detailsContainer) {
+      detailsContainer.addEventListener('click', (event) => {
+        const btn = event.target?.closest?.('.web_event_button_prettify');
+        if (!btn || btn.disabled) {
+          return;
+        }
+        const target = btn.getAttribute('data-target');
+        if (target === 'request') {
+          togglePrettifyRequest();
+        } else if (target === 'response') {
+          togglePrettifyResponse();
+        }
+      });
+    }
     const bindBtn = (id, fn) => {
       const el = getById(id);
       if (el) el.addEventListener('click', fn);
@@ -847,9 +870,25 @@ const eventTracker = (function() {
 
   window.addEventListener('beforeunload', clearAllSessionRules);
 
+  function togglePrettifyRequest() {
+    if (typeof httpTrackerDetailsView.togglePrettifyRequestBody === 'function') {
+      httpTrackerDetailsView.togglePrettifyRequestBody();
+    }
+    renderSelectedEventDetails();
+  }
+
+  function togglePrettifyResponse() {
+    if (typeof httpTrackerDetailsView.togglePrettifyResponseBody === 'function') {
+      httpTrackerDetailsView.togglePrettifyResponseBody();
+    }
+    renderSelectedEventDetails();
+  }
+
   return {
     processWebEvent,
     logRequestDetails: processWebEvent,
     markSelectedRequest,
+    togglePrettifyRequest,
+    togglePrettifyResponse,
   };
 })();
